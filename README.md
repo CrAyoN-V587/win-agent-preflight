@@ -21,6 +21,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 - 对用户明确指定的一个 PATH launcher 执行严格校验、固定 `--version` 探测和有限的 PowerShell 旁路检查，输出独立 Command Doctor 状态报告；
 - 先复用 Agent Doctor 结果，再生成不让 scan 重复探测三个 Agent 的离线支持报告；
 - 从已有 scan/Agent Doctor 事实纯推导有限的 `next_checks`，不在建议阶段运行命令或读取环境；
+- 根据项目根目录第一层的固定 marker 推导 Python、Node/npm/pnpm 或 CMake 工具需求，并只对实际需要的工具执行有界 `--version` 探测；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
 真实 Agent 宿主终端快照仍需在各上下文中分别采集，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
@@ -113,7 +114,7 @@ python -m win_agent_preflight scan --json
 - 注册表 PATH 采集仅在 Windows 可用；非 Windows 平台明确返回 `unknown`。权限或类型异常不会被当成空 PATH；
 - PATH 中无法解析的变量只报告变量名，不展示其值，也不会把部分展开结果当作可比较路径；
 - 当前快照命令采集的是执行它的宿主终端；要比较真实 host/agent，用户需要分别在宿主终端和 Agent 实际终端中运行 `snapshot`，再交给 `compare`；
-- 尚未执行真实 Agent 沙箱能力探针，快照差异本身不等于权限结论；
+- 当前 Codex 上下文已分别探测项目目录和 `%TEMP%`；尚未完成普通宿主与 Codex 的成对 snapshot/compare，也未采集 Claude/DSH 上下文，单次探针或快照差异都不能代表其他上下文的权限；
 - `workspace-probe` 只验证一个指定目录的最小文件生命周期，不代表整个 Agent 或系统权限；未知残留不会自动删除；
 - `workspace-probe` 假设没有其他进程在对象身份复核与紧随其后的路径操作之间恶意替换同名文件或目录；当前不引入 Windows 句柄级删除来消除这一 TOCTOU 窗口；
 - WindowsApps 执行别名或 lstat 权限异常会保留为 `access_denied` 证据；这不等于 Agent 已成功可用，仍需在权限合适的宿主上下文中复验。

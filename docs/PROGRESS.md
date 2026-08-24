@@ -2,7 +2,7 @@
 
 ## 当前快照
 
-- 当前阶段：第十三里程碑 `command-doctor` 已在 `a311f96` 推送并通过 Windows CI run `32703174150`；双端采集协议仍等待用户在普通 PowerShell 生成 host 快照。
+- 当前阶段：`command-doctor` 已在 `a311f96` 推送并通过 Windows CI run `32703174150`；双端采集协议仍等待用户在普通 PowerShell 生成 host 快照。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
 - 最近验证：Command Doctor 定向回归 82 项、全量回归 200 项、Ruff、diff check 和真实 `npm`/`npm.cmd`/`pnpm` CLI 均已通过；main CI `32703174150` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装也已通过。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。

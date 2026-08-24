@@ -68,7 +68,7 @@ python -B -m win_agent_preflight project-doctor --target . --json --pretty --tim
 
 ## command-doctor 本地边界
 
-第十三里程碑的 `command-doctor` 已在本机完成实现和回归，并随提交 `a311f96` 通过 Windows CI run `32703174150`。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
+`command-doctor` 已在本机完成实现和回归，并随提交 `a311f96` 通过 Windows CI run `32703174150`。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
 
 ```powershell
 python -B -m win_agent_preflight command-doctor npm --json --pretty --timeout 1

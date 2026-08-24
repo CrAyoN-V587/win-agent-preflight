@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第十三里程碑 `command-doctor` 已完成设计、实现、复审、本地回归和远程 CI；双端协议仍等待宿主端手动采集。
+当前阶段：`command-doctor` 已完成设计、实现、复审、本地回归和远程 CI；双端协议仍等待宿主端手动采集。
 
 下一步：按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，并运行 host ↔ Codex `compare`。
 
-最近验证：第十三里程碑定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：`command-doctor` 定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -140,7 +140,7 @@
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
 - 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
 - snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
-- 第十三里程碑 `command-doctor` 已完成独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码，并在 `a311f96` 推送后通过远程验证。
+- `command-doctor` 已完成独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码，并在 `a311f96` 推送后通过远程验证。
 
 当前阻塞：
 
@@ -149,12 +149,13 @@
 
 下一步：
 
-- 审阅并提交 `command-doctor`，运行远程 Windows CI；随后用户按 `docs/context-comparison.md` 在宿主 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
+- 用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
 - 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
 
-未提交修改：
+工作区恢复检查：
 
-- 第十三里程碑的 `command_doctor.py`、`launcher_probe.py`、相关 `windows.py`/`agent_doctor.py`/CLI/renderer/test 修改，以及 README、AGENTS、设计与状态文档；不包含 Codex 快照证据文件。
+- 先运行 `git status --short`，以实际输出判断是否存在未提交修改；不要在此维护容易过期的文件清单。
+- 最近稳定功能提交为 `a311f96`，远程 `main` 已包含该提交及其 CI 结果记录。
 
 ## 关键决策
 
@@ -237,7 +238,7 @@
 
 ## 已知限制和后续
 
-- 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
+- 当前 Codex 上下文已完成项目目录和 `%TEMP%` 的 workspace probe；尚未完成普通宿主与 Codex 的成对 snapshot/compare，也未采集 Claude/DSH 上下文，因此不能把单次探针外推为其他上下文的权限结论。
 - Windows CI `32703174150` 已确认包括 `command-doctor`、snapshot 修复和 project-doctor 在内的 Python 3.12/3.14 矩阵及远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
 - `project-doctor` 只检查固定第一层十个 basename，marker 语义不等同于构建系统完整识别；冲突、孤立 lockfile、yarn/bun lockfile 和 marker lstat 异常会保守返回 `unknown`，未列入固定表的文件会忽略。它不读取 marker 内容、不递归、不以 target 作为工具 cwd。
 - `agent-doctor` 只描述当前进程这一次 PATH/launcher 探测上下文；同一 Agent 可能依次尝试多个候选；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
