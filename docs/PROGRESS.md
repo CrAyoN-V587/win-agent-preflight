@@ -4,7 +4,7 @@
 
 - 当前阶段：第七里程碑 `support-report` 已实现、复审并提交为 `10dc7a6`，待推送与首次 GitHub runner 执行。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
-- 最近验证：第七里程碑全量 104 项测试和 Ruff 通过；`build 1.5.0` 成功生成 1 个 sdist 与 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI；真实 Support Report JSON 退出 0，未运行 workspace-probe。不能据此声称 GitHub CI 或 Python 3.14 已运行。
+- 最近验证：第七里程碑全量 104 项测试和 Ruff 通过；最新源码生成 1 个 sdist 与 1 个 wheel，并分别在两个全新 Python 3.12 虚拟环境安装，`support-report --help` 均启动成功；真实 Support Report JSON 退出 0，未运行 workspace-probe。不能据此声称 GitHub CI 或 Python 3.14 已运行。
 - 未完成项：第七里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
 - 下一步：恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
 
@@ -153,6 +153,7 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 | 2026-08-24 | `python -B -m win_agent_preflight scan --json --pretty --timeout 2` | 退出 0；10 pass、3 warning、0 fail、0 unknown；JSON 可解析 |
 | 2026-08-24 | 第七里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 104 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | Support Report 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；JSON 可解析；`offline=true`、`workspace_probe_run=false`；未运行 workspace-probe |
+| 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；沙箱中暴露的真实失败为 PyPI 网络权限 |
 
 ## 下一里程碑验收
 

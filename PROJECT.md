@@ -14,7 +14,7 @@
 
 下一步：恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
-最近验证：第七里程碑全量测试、Ruff 和真实 `support-report --json` 已通过；前六里程碑的 `build 1.5.0` 已生成并验收 sdist/wheel。真实支持报告保留当前 Codex WindowsApps `access_denied` 与 Claude/DSH `command_not_found`，且未运行 workspace-probe；GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
+最近验证：第七里程碑 104 项测试、Ruff 和真实 `support-report --json` 已通过；最新源码已重新构建 sdist/wheel，并分别在两个全新 Python 3.12 环境安装，`support-report --help` 均启动成功。真实支持报告保留当前 Codex WindowsApps `access_denied` 与 Claude/DSH `command_not_found`，且未运行 workspace-probe；GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -180,6 +180,7 @@
 | 2026-08-24 | Agent Doctor 真实 CLI | `python -B -m win_agent_preflight agent-doctor --json --pretty` | 退出 1；Codex WindowsApps launcher 为 `access_denied`（WinError 5），Claude/DSH 为 `command_not_found`；未回显 stdout/stderr |
 | 2026-08-24 | 第七里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 104 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | Support Report 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；JSON 可解析；`offline=true`、`workspace_probe_run=false`；多候选回退由 Agent Doctor 负责，scan 不重复探测三个 Agent（候选调用由测试验证） |
+| 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；首次沙箱构建的真实阻塞为 PyPI 网络权限，不是源码或构建后端错误 |
 
 ## 暂停检查点
 

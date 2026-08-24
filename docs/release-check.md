@@ -19,6 +19,8 @@ py -3.12 -m build --sdist --wheel
 
 `dist` 中应恰好有一个 `.tar.gz` 源码包和一个 `.whl` wheel 包。默认隔离构建会按 `pyproject.toml` 准备 `setuptools>=68`，避免依赖当前 Python 环境中碰巧存在的构建后端版本；因此首次构建通常需要联网。
 
+中文 Windows 上若隔离环境中的 pip 先输出本地代码页错误，`build` 可能只显示 `UnicodeDecodeError`，遮住真正原因。可只为当前 PowerShell 进程设置 `$env:PYTHONUTF8='1'` 后重试；这不会修改系统设置。若随后出现网络权限或依赖下载错误，应处理该真实原因，不要因此改成非隔离构建。
+
 ## 干净虚拟环境安装
 
 分别为两个制品创建新的虚拟环境，并运行 CLI 帮助。PowerShell 中先解析制品路径，避免把通配符原样传给 pip：
