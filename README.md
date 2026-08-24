@@ -116,6 +116,7 @@ python -m win_agent_preflight scan --json
 - 当前快照命令采集的是执行它的宿主终端；要比较真实 host/agent，用户需要分别在宿主终端和 Agent 实际终端中运行 `snapshot`，再交给 `compare`；
 - 当前 Codex 上下文已分别探测项目目录和 `%TEMP%`；尚未完成普通宿主与 Codex 的成对 snapshot/compare，也未采集 Claude/DSH 上下文，单次探针或快照差异都不能代表其他上下文的权限；
 - `workspace-probe` 只验证一个指定目录的最小文件生命周期，不代表整个 Agent 或系统权限；未知残留不会自动删除；
+- 同一 Agent 上下文对不同项目目录的结果可能不同；普通 ACL 文本不能替代目标目录上的实际探针，也不能单独证明失败来自 Windows ACL 或 Agent 沙箱；
 - `workspace-probe` 假设没有其他进程在对象身份复核与紧随其后的路径操作之间恶意替换同名文件或目录；当前不引入 Windows 句柄级删除来消除这一 TOCTOU 窗口；
 - WindowsApps 执行别名或 lstat 权限异常会保留为 `access_denied` 证据；这不等于 Agent 已成功可用，仍需在权限合适的宿主上下文中复验。
 - `command-doctor` 只说明一次当前 Windows 进程的 PATH、launcher 和 PowerShell 事实；`usable` 不代表账号登录、网络或 Agent 沙箱权限可用。非 Windows 平台不执行 discovery、registry 或 Runner。

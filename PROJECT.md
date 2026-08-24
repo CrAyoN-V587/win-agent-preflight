@@ -16,6 +16,8 @@
 
 最近验证：`command-doctor` 定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
 
+真实项目复验：`project-doctor` 正确识别 MyMineCraft 的 Node + pnpm 和 MCP Interop Lab 的 Python；两份无标准依赖 marker 的旧 Triton 源码树保守返回 `unknown`。同一 Codex 上下文的 `workspace-probe` 在 Triton 优化项目六步通过，在 MyMineCraft 与 MCP Interop Lab 创建目录时返回 WinError 5；三次均无残留。
+
 ## 问题和价值
 
 - 要解决的问题：Windows 上“命令已安装但 Agent 无法使用”的分层诊断问题。

@@ -247,6 +247,8 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过 |
 | 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
 | 2026-08-24 | command-doctor GitHub Windows CI | [run 32703174150](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) | Python 3.12/3.14 的 200 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | 真实项目 project-doctor 矩阵 | MyMineCraft、MCP Interop Lab、两份 Triton 源码树 | MyMineCraft 识别 Node + pnpm 并退出 0；MCP Lab 识别 Python 并退出 0；两份未提供 `pyproject.toml`/`requirements.txt` 等受支持 marker 的旧 Triton 源码树均以 `no supported project marker` 退出 1，未凭 `.py` 文件猜测工具链 |
+| 2026-08-24 | 真实项目 workspace-probe 矩阵 | MyMineCraft、Evolutionary Triton Optimizer、MCP Interop Lab | 同一 Codex 上下文中，Triton 项目六步通过；MyMineCraft 与 MCP Lab 均在创建探针目录时返回 PermissionError/WinError 5；三次 `residual_paths=[]`。只读目录属性与 ACL 未解释差异，因此不把失败武断归因于 Windows ACL 或 Agent 沙箱 |
 
 ## 下一里程碑验收
 
