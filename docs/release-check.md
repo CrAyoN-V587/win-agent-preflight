@@ -5,7 +5,7 @@
 ## 环境
 
 - 本机当前已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
-- `git-doctor` 已完成本地实现和定向回归，但当前未提交；本地验证通过不等于远程 CI、制品安装或 GitHub 认证已验证。
+- `git-doctor` 提交 `67697c7` 已通过 main Windows CI run `32708225452` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job；GitHub 认证仍不在离线验收范围内。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -91,7 +91,7 @@ python -m ruff check src/win_agent_preflight/git_doctor.py tests/test_git_doctor
 git diff --check
 ```
 
-当前结果为 38 passed（Git Doctor 37 项，CLI help 1 项）、全量 237 passed、Ruff 通过、diff check 无内容错误；真实仓库根只读验收退出 0，`local_ready=true`，认证仍固定为 `not_checked_offline`。打包制品中的该命令和 Windows CI 仍待主 Agent 提交后复验；不要把本地报告中的 `github.auth=not_checked_offline` 解释为登录失败或登录成功。
+当前结果为 38 passed（Git Doctor 37 项，CLI help 1 项）、全量 237 passed、Ruff 通过、diff check 无内容错误；真实仓库根只读验收退出 0，`local_ready=true`，认证仍固定为 `not_checked_offline`。提交 `67697c7` 的 Windows CI `32708225452` 已完成两个 Python 矩阵 job、sdist/wheel 双安装和制品上传；不要把本地报告中的 `github.auth=not_checked_offline` 解释为登录失败或登录成功。
 
 ## snapshot 写入边界
 

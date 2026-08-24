@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`command-doctor` 提交 `a311f96` 已推送，main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已全部通过。`git-doctor` 已在本地实现并完成定向回归，当前未提交，远程 CI 尚待主 Agent 复核后触发。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`git-doctor` 提交 `67697c7` 已推送，main CI run [`32708225452`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) 已全部通过。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；

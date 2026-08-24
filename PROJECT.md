@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（`command-doctor` 提交 `a311f96` 已推送并通过 main CI；`git-doctor` 当前已本地实现，尚未提交/远程验证）
+状态：进行中（`git-doctor` 提交 `67697c7` 已推送；main CI run `32708225452` 全部通过）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：`git-doctor` 已完成最小设计、实现和定向回归；双端协议仍等待宿主端手动采集，git-doctor 尚待主 Agent 复核后提交并触发 Windows CI。
+当前阶段：`git-doctor` 已完成设计、实现、复审、本地回归和远程 CI；双端协议仍等待宿主端手动采集。
 
-下一步：先复核并提交 `git-doctor`，运行 Windows CI；随后按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，并运行 host ↔ Codex `compare`。
+下一步：按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，并运行 host ↔ Codex `compare`。
 
-最近验证：`git-doctor` 定向回归 37 项、真实仓库根命令、全量回归 237 项、Ruff 和 diff check 已通过；真实根报告 `local_ready=true`，6 pass、GitHub auth 1 unknown（固定离线未验证），未输出 identity/remote/helper 原值。既有 `command-doctor` 的 200 项基线和 main CI [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 仍保持通过（详见 `docs/PROGRESS.md`）。
+最近验证：`git-doctor` 定向回归 37 项、真实仓库根命令、全量回归 237 项、Ruff 和 diff check 已通过；真实根报告 `local_ready=true`，6 pass、GitHub auth 1 unknown（固定离线未验证），未输出 identity/remote/helper 原值。提交 `67697c7` 的 main CI [`32708225452`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) 已完成 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传（详见 `docs/PROGRESS.md`）。
 
 真实项目复验：`project-doctor` 正确识别 MyMineCraft 的 Node + pnpm 和 MCP Interop Lab 的 Python；两份无标准依赖 marker 的旧 Triton 源码树保守返回 `unknown`。同一 Codex 上下文的 `workspace-probe` 在 Triton 优化项目六步通过，在 MyMineCraft 与 MCP Interop Lab 创建目录时返回 WinError 5；三次均无残留。
 
@@ -65,7 +65,7 @@
 - CLI 公开帮助使用 ASCII 文字并关闭 Rich Unicode 帮助边框；实际报告输出和中文文档不因此改变。
 - `project-doctor` 只接受显式 `--target`；冲突/孤立 lockfile、yarn/bun lockfile 或 marker 检查异常标记为 `unknown`，未列入固定表的项目文件直接忽略；实现已完成独立审阅和远程 CI 验证。
 - `command-doctor` 不诊断 PATH 之外的命令，不执行 login/doctor/npx/web 或其他参数；明确请求的缺失命令是能力失败（退出 1），非法输入和非 Windows 平台退出 2；实现已完成独立复审和远程 CI 验证。
-- `git-doctor` 不运行认证、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh 或网络；原始 identity、remote、helper 值不进入报告，GitHub auth 固定为离线 unknown；本地实现尚未进入远程 CI。
+- `git-doctor` 不运行认证、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh 或网络；原始 identity、remote、helper 值不进入报告，GitHub auth 固定为离线 unknown；实现已完成独立复审和远程 CI 验证。
 
 ## 成功标准
 
@@ -88,7 +88,7 @@
 - [x] `project-doctor` 的固定 marker 推导、冲突/孤立、marker 异常累计、输入边界、工具调用/required_by、脱敏、JSON/Console 和退出码已有本地及远程测试。
 - [x] snapshot 写入改为有界 `O_EXCL` 临时文件流程；权限/其他写入错误快速退出 2，失败不留下本次临时文件，覆盖碰撞、写入、fsync、替换和 CLI 错误路径测试。
 - [x] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已通过本地及远程验证。
-- [ ] `git-doctor` 独立 v1：完成本地实现、脱敏和固定只读命令回归；待主 Agent 复核、提交和 Windows CI 验证。
+- [x] `git-doctor` 独立 v1：固定只读命令、状态归约、脱敏、CLI/退出码和常见 remote 边界已通过本地及远程验证。
 
 ## 计划
 
@@ -107,7 +107,7 @@
 - [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理，并通过远程 CI。
 - [x] 14. 建立 host/Agent 双端采集协议；不新增伪自动化包装，Codex 端已在 `%TEMP%` 生成并验证首份快照。
 - [x] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；设计、实现、复审与远程验证完成。
-- [ ] 16. 增加独立 `git-doctor` v1：离线判断本地 Git readiness；不验证远程认证、不联网、不写配置；本地实现完成，待提交和远程验证。
+- [x] 16. 增加独立 `git-doctor` v1：离线判断本地 Git readiness；不验证远程认证、不联网、不写配置；设计、实现、复审与远程验证完成。
 
 ## 技术和环境
 
@@ -147,16 +147,16 @@
 - 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
 - snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
 - `command-doctor` 已完成独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码，并在 `a311f96` 推送后通过远程验证。
-- `git-doctor` 已完成本地独立 v1 报告、Git/remote/helper 归约、GitHub CLI 条件探测、固定命令白名单、失败结构化证据、37 项定向回归和真实仓库根只读验收；当前未提交，尚未有远程 CI 证据。
+- `git-doctor` 已完成独立 v1 报告、Git/remote/helper 归约、GitHub CLI 条件探测、固定命令白名单、失败结构化证据、37 项定向回归和真实仓库根只读验收；提交 `67697c7` 已通过 Windows CI `32708225452`。
 
 当前阻塞：
 
-- 无认证或制品安装阻塞；`git-doctor` 仅剩主 Agent 复核、提交和 Windows CI 验证这一阶段性阻塞。
+- 无认证、本地实现、Windows CI 或制品安装阻塞。
 - Codex 端快照已生成；宿主端必须由用户在普通 PowerShell 手动运行一次，当前尚未形成成对证据，因此不能断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 主 Agent 复核并提交 `git-doctor`，触发 Windows CI；随后用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
+- 用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
 - 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
 
 工作区恢复检查：
@@ -234,7 +234,8 @@
 | 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过 |
 | 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
 | 2026-08-24 | command-doctor GitHub Windows CI | [run 32703174150](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) | Python 3.12/3.14 的 200 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
-| 2026-08-24 | git-doctor 定向回归 | `python -B -m pytest tests/test_git_doctor.py tests/test_cli_help.py -ra -p no:cacheprovider`、`python -m ruff check src/win_agent_preflight/git_doctor.py tests/test_git_doctor.py --no-cache`、`git diff --check` | 38 passed（Git Doctor 37 项，CLI help 1 项）；固定 Git/gh 命令白名单、身份/remote/helper 脱敏、失败/超时、输入边界、JSON/Console/退出码通过；仅本地验证，尚未提交或远程 CI |
+| 2026-08-24 | git-doctor 定向回归 | `python -B -m pytest tests/test_git_doctor.py tests/test_cli_help.py -ra -p no:cacheprovider`、`python -m ruff check src/win_agent_preflight/git_doctor.py tests/test_git_doctor.py --no-cache`、`git diff --check` | 38 passed（Git Doctor 37 项，CLI help 1 项）；固定 Git/gh 命令白名单、身份/remote/helper 脱敏、失败/超时、输入边界、JSON/Console/退出码通过 |
+| 2026-08-24 | git-doctor GitHub Windows CI | [run 32708225452](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) | 提交 `67697c7` 的 Python 3.12/3.14 全量 237 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | git-doctor 真实仓库根 | `python -B -m win_agent_preflight git-doctor --target . --json --pretty --timeout 1` | 退出 0；`local_ready=true`，6 pass、`github.auth` 为固定 `unknown/not_checked_offline`；无文件写入，未执行认证或网络命令 |
 
 ## 暂停检查点

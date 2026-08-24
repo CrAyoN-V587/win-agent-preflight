@@ -6,7 +6,7 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：上述既有切片和 `command-doctor` 均已有本地及远程 Windows CI/包验收证据；`git-doctor` 已在本地实现和回归，尚待主 Agent 复核后提交并触发远程 CI。
+- 当前阶段：上述既有切片、`command-doctor` 和 `git-doctor` 均已有本地及远程 Windows CI/包验收证据。
 
 ## 环境和命令
 
