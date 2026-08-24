@@ -136,4 +136,4 @@ cli.py
 
 Codex 工作区对项目目录的写入曾以 WinError 5 被拒绝；旧的 `NamedTemporaryFile` 路径在该边界可能表现为高 CPU 或长时间无结果。修复后的 `snapshot` 写出不再依赖 `tempfile`：只在输出父目录生成最多三个 UUID 临时名，并对每个名称进行一次 `O_EXCL` 创建。只有名称碰撞重试，第一次 `PermissionError` 或其他 `OSError` 立即返回 `SnapshotError`，CLI 返回 2。
 
-临时文件成功创建后以 UTF-8、`newline="\n"` 写入，执行 write、flush、fsync；强制覆盖仍用 `os.replace`，默认不覆盖仍用 `os.link` 后删除临时文件。任何已知失败只删除本次成功创建的临时文件，不遍历目录、不处理历史 `.tmp`、不后台重试；`fdopen` 构造失败也会关闭已取得的文件描述符。最新已推送内容的 main CI run `32696504545` 绿色，但不包含本次本地修复，需提交后重新远程验证。
+临时文件成功创建后以 UTF-8、`newline="\n"` 写入，执行 write、flush、fsync；强制覆盖仍用 `os.replace`，默认不覆盖仍用 `os.link` 后删除临时文件。任何已知失败只删除本次成功创建的临时文件，不遍历目录、不处理历史 `.tmp`、不后台重试；`fdopen` 构造失败也会关闭已取得的文件描述符。提交 `4b8d16d` 已推送，并通过 main CI run `32699112641` 的 Python 3.12/3.14 测试和包验收。
