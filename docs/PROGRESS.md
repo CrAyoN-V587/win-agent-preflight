@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：第七里程碑 `support-report` 已实现并完成本地验证，待提交；前六里程碑已提交，待推送与首次 GitHub runner 执行。
+- 当前阶段：第七里程碑 `support-report` 已实现、复审并提交为 `10dc7a6`，待推送与首次 GitHub runner 执行。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
 - 最近验证：第七里程碑全量 104 项测试和 Ruff 通过；`build 1.5.0` 成功生成 1 个 sdist 与 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI；真实 Support Report JSON 退出 0，未运行 workspace-probe。不能据此声称 GitHub CI 或 Python 3.14 已运行。
 - 未完成项：第七里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
-- 下一步：由主 Agent 审阅并提交第七里程碑；恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
+- 下一步：恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
 
 本机建议安装环境（基于当前验证）：
 
@@ -111,10 +111,10 @@
 
 ## 暂停检查点
 
-- 当前阶段：第七里程碑 `support-report` 实现和全量验证完成，待主 Agent 审阅/提交；前六里程碑已提交，GitHub runner 尚未执行。
+- 当前阶段：第七里程碑 `support-report` 实现、全量验证和独立复审完成，已提交 `10dc7a6`；GitHub runner 尚未执行。
 - 最近验证：104 项测试与 Ruff 通过；build 1.5.0 构建 sdist/wheel 各 1 个；两个干净 Python 3.12 环境安装并启动 CLI 成功；真实 Support Report JSON 已输出 `offline=true`、`workspace_probe_run=false`。多候选回退及 scan 不重复由自动化测试验证，真实命令记录不声称列出候选调用次数。
-- 未完成项：第七里程碑提交、GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步：主 Agent 审阅并提交第七里程碑，恢复 GitHub 认证后创建/更新远程并推送。
+- 未完成项：GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步：恢复 GitHub 认证后创建/更新远程并推送。
 - 恢复命令：
 
 ```powershell

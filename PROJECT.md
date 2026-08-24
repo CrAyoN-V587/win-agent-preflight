@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第七里程碑 `support-report` 已实现并待提交；前六个里程碑待远程推送和首次 CI）
+状态：进行中（第七里程碑 `support-report` 已提交，待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -12,7 +12,7 @@
 
 当前阶段：第七里程碑——组合离线支持报告，复用 Agent Doctor 结果并避免 scan 重复探测三个 Agent。
 
-下一步：完成第七里程碑审阅和提交；恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：第七里程碑全量测试、Ruff 和真实 `support-report --json` 已通过；前六里程碑的 `build 1.5.0` 已生成并验收 sdist/wheel。真实支持报告保留当前 Codex WindowsApps `access_denied` 与 Claude/DSH `command_not_found`，且未运行 workspace-probe；GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
@@ -124,7 +124,7 @@
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
 - 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
 - 第六里程碑已完成设计、实现、两轮边界修正和独立复审，并提交为 `f7e3503`；尚待推送。
-- 第七里程碑 `support-report` 已完成实现和本地验证，当前尚未提交。
+- 第七里程碑 `support-report` 已完成实现、边界修正和独立复审，并提交为 `10dc7a6`；尚待推送。
 
 下一步：
 
@@ -134,7 +134,7 @@
 
 未提交修改：
 
-- 第七里程碑的 `support_report.py`、预计算检查入口、CLI/渲染、测试和文档；完成审阅后提交。
+- 无；本次状态文档提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -184,7 +184,7 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第六里程碑 `f7e3503`；第七里程碑尚未提交，提交后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第七里程碑 `10dc7a6`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
