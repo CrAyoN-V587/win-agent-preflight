@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（既有稳定内容已随 `4b8d16d` 推送并通过 main CI `32699112641`；第十三里程碑 `command-doctor` 已本地实现，尚未提交/远程验证）
+状态：进行中（`command-doctor` 提交 `a311f96` 已推送；main CI run `32703174150` 全部通过）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第十三里程碑 `command-doctor` 本地实现与回归已完成；双端协议仍等待宿主端手动采集。
+当前阶段：第十三里程碑 `command-doctor` 已完成设计、实现、复审、本地回归和远程 CI；双端协议仍等待宿主端手动采集。
 
-下一步：先审阅并提交 `command-doctor`，在 Windows CI 复验后，再按 `docs/context-comparison.md` 生成 `host.json` 并运行 host ↔ Codex `compare`。
+下一步：按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，并运行 host ↔ Codex `compare`。
 
-最近验证：第十三里程碑定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。既有 main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：第十三里程碑定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -61,7 +61,7 @@
 - `next_checks` 只由既有 scan/Agent Doctor 模型触发，不解析自由文本、不运行命令、不读取环境；仅覆盖明确的 Agent launcher/version、PowerShell npm 和 PATH refresh 场景。
 - CLI 公开帮助使用 ASCII 文字并关闭 Rich Unicode 帮助边框；实际报告输出和中文文档不因此改变。
 - `project-doctor` 只接受显式 `--target`；冲突/孤立 lockfile、yarn/bun lockfile 或 marker 检查异常标记为 `unknown`，未列入固定表的项目文件直接忽略；实现已完成独立审阅和远程 CI 验证。
-- `command-doctor` 不诊断 PATH 之外的命令，不执行 login/doctor/npx/web 或其他参数；明确请求的缺失命令是能力失败（退出 1），非法输入和非 Windows 平台退出 2；本地实现待远程 CI 复验。
+- `command-doctor` 不诊断 PATH 之外的命令，不执行 login/doctor/npx/web 或其他参数；明确请求的缺失命令是能力失败（退出 1），非法输入和非 Windows 平台退出 2；实现已完成独立复审和远程 CI 验证。
 
 ## 成功标准
 
@@ -83,7 +83,7 @@
 - [x] 根命令和全部子命令 help 在严格 `PYTHONIOENCODING=cp1252:strict` 下可解码并退出 0，且不会执行采集或写文件。
 - [x] `project-doctor` 的固定 marker 推导、冲突/孤立、marker 异常累计、输入边界、工具调用/required_by、脱敏、JSON/Console 和退出码已有本地及远程测试。
 - [x] snapshot 写入改为有界 `O_EXCL` 临时文件流程；权限/其他写入错误快速退出 2，失败不留下本次临时文件，覆盖碰撞、写入、fsync、替换和 CLI 错误路径测试。
-- [ ] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已在本地完成；待提交后由 Windows CI 复验。
+- [x] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已通过本地及远程验证。
 
 ## 计划
 
@@ -101,7 +101,7 @@
 - [x] 12. 增加独立 `project-doctor` v1：第一层 marker 推导与必需工具 `--version` 探测；设计、实现、复审与远程验证完成。
 - [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理，并通过远程 CI。
 - [x] 14. 建立 host/Agent 双端采集协议；不新增伪自动化包装，Codex 端已在 `%TEMP%` 生成并验证首份快照。
-- [ ] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；本地完成，待远程复验。
+- [x] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；设计、实现、复审与远程验证完成。
 
 ## 技术和环境
 
@@ -134,17 +134,17 @@
 - 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
-- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；包含 snapshot 修复的 main run `32699112641` 已全部通过。
+- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；包含 `command-doctor` 的 main run `32703174150` 已全部通过。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
 - 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现、测试和独立复审已完成并提交为 `9f5b951`。
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
 - 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
 - snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
-- 第十三里程碑 `command-doctor` 已完成本地实现：独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码均已覆盖；尚未提交或远程验证。
+- 第十三里程碑 `command-doctor` 已完成独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码，并在 `a311f96` 推送后通过远程验证。
 
 当前阻塞：
 
-- 无认证或本地实现阻塞；第十三里程碑尚未提交，因此其 Windows CI 和制品安装验收尚未执行。
+- 无认证、本地实现、Windows CI 或制品安装阻塞。
 - Codex 端快照已生成；宿主端必须由用户在普通 PowerShell 手动运行一次，当前尚未形成成对证据，因此不能断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
@@ -222,13 +222,14 @@
 | 2026-08-24 | snapshot 静态检查 | `python -m ruff check src/win_agent_preflight/snapshot.py tests/test_snapshot.py tests/test_cli.py --no-cache` | All checks passed |
 | 2026-08-24 | snapshot P1/P2 全量回归 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 158 passed；父路径为普通文件时 force/non-force 均为 `cannot write snapshot`，link 竞争仍保留 `output already exists`，主失败叠加 cleanup 失败及 non-force 提交后删除失败均保留残留并报告；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | command-doctor 定向回归 | `python -B -m pytest tests/test_command_doctor.py tests/test_windows.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 82 passed；覆盖严格输入零 Runner、非 Windows 零 facts/Runner、PATHEXT 顺序和候选回退、五态/WinError/timeout/空输出、PowerShell 裸命令和显式扩展检查、direct + bare 恰好两次同 timeout、JSON/Console/退出码/cp1252 help |
-| 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过；本次实现尚未提交或远程 CI 验证 |
+| 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过 |
 | 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
+| 2026-08-24 | command-doctor GitHub Windows CI | [run 32703174150](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) | Python 3.12/3.14 的 200 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定功能提交：snapshot 写入修复 `4b8d16d`，已推送并通过 Windows CI run `32699112641`。
+- 最近稳定功能提交：`command-doctor` `a311f96`，已推送并通过 Windows CI run `32703174150`。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
@@ -237,7 +238,7 @@
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
-- Windows CI `32699112641` 已确认包括 snapshot 修复和 project-doctor 在内的 Python 3.12/3.14 矩阵及远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
+- Windows CI `32703174150` 已确认包括 `command-doctor`、snapshot 修复和 project-doctor 在内的 Python 3.12/3.14 矩阵及远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
 - `project-doctor` 只检查固定第一层十个 basename，marker 语义不等同于构建系统完整识别；冲突、孤立 lockfile、yarn/bun lockfile 和 marker lstat 异常会保守返回 `unknown`，未列入固定表的文件会忽略。它不读取 marker 内容、不递归、不以 target 作为工具 cwd。
 - `agent-doctor` 只描述当前进程这一次 PATH/launcher 探测上下文；同一 Agent 可能依次尝试多个候选；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
 - WindowsApps alias 或 lstat 受限会保守报告为 `access_denied`/结构化不可用状态，不把它当作命令缺失；其他进程或权限变化可能使后续启动结果不同。

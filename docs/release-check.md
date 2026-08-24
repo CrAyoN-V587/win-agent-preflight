@@ -4,7 +4,7 @@
 
 ## 环境
 
-- 本机当前已验证 Python 3.12；main Windows CI run `32699112641` 已完整验证包含 snapshot 修复的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
+- 本机当前已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -68,7 +68,7 @@ python -B -m win_agent_preflight project-doctor --target . --json --pretty --tim
 
 ## command-doctor 本地边界
 
-第十三里程碑的 `command-doctor` 已在本机完成实现和回归，尚未提交，故本节不把它写成远程 CI 已验证。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
+第十三里程碑的 `command-doctor` 已在本机完成实现和回归，并随提交 `a311f96` 通过 Windows CI run `32703174150`。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
 
 ```powershell
 python -B -m win_agent_preflight command-doctor npm --json --pretty --timeout 1
@@ -86,6 +86,6 @@ python -B -m win_agent_preflight command-doctor pnpm --json --pretty --timeout 1
 
 ## CI 边界
 
-CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；包含 snapshot 修复的 main run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。
+CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；包含 `command-doctor` 的 main run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。
 
 GitHub CLI 已认证，远程包验收已有成功证据。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。

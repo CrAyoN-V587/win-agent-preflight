@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。snapshot 写入修复提交 `4b8d16d` 已推送，main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 已全部通过；第十三里程碑 `command-doctor` 已在本地完成，待提交后由 Windows CI 复验。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`command-doctor` 提交 `a311f96` 已推送，main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已全部通过。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -66,9 +66,9 @@ py -3.12 -m build --sdist --wheel
 
 ## CI 与包验收
 
-`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；包含 snapshot 修复的 main run `32699112641` 已完成整条流水线和制品上传。
+`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；包含 `command-doctor` 的 main run `32703174150` 已完成整条流水线和制品上传。
 
-这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help、`project-doctor`、snapshot 修复和 sdist/wheel 已在 `32699112641` 中通过。
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14 的 200 项测试、严格 cp1252 help、`command-doctor`、`project-doctor`、snapshot 修复和 sdist/wheel 已在 `32703174150` 中通过。
 
 全局 `scan` 仍检查固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`；需要按项目 marker 缩小到实际工具链时使用 `project-doctor --target <目录>`。
 
