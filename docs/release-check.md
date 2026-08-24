@@ -4,7 +4,7 @@
 
 ## 环境
 
-- 本机当前已验证 Python 3.12；首次 Windows CI run `32691934171` 已确认 Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过，但两个矩阵 job 在根 help 的 cp1252 编码阶段失败。
+- 本机当前已验证 Python 3.12；Windows CI run `32693383743` 已完整验证 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -58,6 +58,6 @@ Remove-Item Env:PYTHONIOENCODING
 
 ## CI 边界
 
-CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。公开仓库旧 HEAD `9259a4d` 的首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 中，两个矩阵 job 已完成安装、pytest（以及 3.12 Ruff），但均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。打包 job 因 `needs: test` 被跳过，因此远程 sdist/wheel 尚未验证；本地制品验收不能替代该结果。
+CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；修复提交 `affa4a3` 对应的 run [`32693383743`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。
 
-当前 cp1252 help 修复仍未提交/推送；GitHub CLI 已认证。修复推送后应重跑两个矩阵 job，确认其通过后再确认 package job 的 sdist/wheel 安装验收。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。
+GitHub CLI 已认证，远程包验收已有成功证据。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。

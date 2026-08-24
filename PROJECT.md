@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（公开仓库旧 HEAD `9259a4d` 已推送；首次 Windows CI run `32691934171` 在根 help 的 cp1252 编码阶段失败；当前修复尚未提交/推送）
+状态：进行中（cp1252 help 修复提交 `affa4a3` 已推送；Windows CI run `32693383743` 全部通过）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：CLI help 的 cp1252 兼容维护——公开 Typer help/docstring 使用 ASCII，并用严格代码页子进程验证；不改变报告输出或采集边界。
+当前阶段：真实 host/agent 差异采集准备——远程 CI 与包验收已通过，下一步只采集同机不同执行上下文的成对快照。
 
-下一步：完成本次 help 修复的审阅与提交并推送，重跑 Windows CI；确认根 help、两个 Python 矩阵和随后 package job 全部通过。
+下一步：由用户在宿主终端和 Agent 实际终端分别生成 host/agent 快照，再用 `compare` 验证真实环境差异；后续功能只根据这批证据扩展。
 
-最近验证：本地严格 cp1252 子进程 help 测试、114 项测试、Ruff 和 diff check 已通过。首次 Windows CI run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 中，Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过，但两个矩阵 job 在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 被 `needs: test` 跳过（详见 `docs/PROGRESS.md`）。
+最近验证：本地严格 cp1252 子进程 help 测试、114 项测试、Ruff 和 diff check 已通过。Windows CI run [`32693383743`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -71,7 +71,7 @@
 - [x] 创建 Windows-only CI 配置：Python 3.12/3.14 测试、3.12 Ruff、CLI/runner-temp probe 和测试后包验收。
 - [x] 配置 sdist/wheel 各一个、干净虚拟环境安装和非 PR 7 天制品上传；不配置自动发布。
 - [x] 首次 CI run 已实际验证 Python 3.12/3.14 的安装与 pytest，3.12 Ruff 通过；失败根因集中在根 `--help` 的 cp1252 编码。
-- [ ] 修复后的 Windows CI 在两个矩阵 job 及后续 sdist/wheel package job 全部通过；package job 尚未远程验证。
+- [x] 修复后的 Windows CI 在两个矩阵 job 及后续 sdist/wheel package job 全部通过。
 - [x] `agent-doctor` 全量回归测试、Ruff 和真实 CLI 验收通过；当前真实上下文结果为 Codex `access_denied`、Claude/DSH `command_not_found`。
 - [x] `support-report` 复用共享 Runner/env/timeout；Agent Doctor 每个已发现候选最多执行一次，scan 不重复探测三个 Agent；Console/JSON 和部分失败退出语义有测试。
 - [x] `SupportReport v2` 保留 v1 顶层字段并增加不可变 `next_checks`；固定优先级/Agent 顺序、去重、触发边界和 Console/JSON 展示均有测试。
@@ -94,7 +94,7 @@
 ## 技术和环境
 
 - 操作系统：Windows（设计目标）；当前验证环境 Windows，PowerShell，Python 3.12.7。
-- 语言与版本：Python `>=3.12`；当前本机实际验证 Python 3.12.7；首次 CI 已验证 Python 3.12/3.14 安装与 pytest，但根 help 的 cp1252 编码失败阻断了矩阵 job 收尾。
+- 语言与版本：Python `>=3.12`；当前本机实际验证 Python 3.12.7；Windows CI 已完整验证 Python 3.12/3.14 矩阵。
 - 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
 - 本地包验收：`py -3.12 -m build --sdist --wheel`，再按 `docs/release-check.md` 分别安装两个制品。
@@ -122,29 +122,24 @@
 - 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
-- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收配置；旧 HEAD `9259a4d` 已推送，首次 run `32691934171` 的矩阵测试在根 help cp1252 编码阶段失败，package job 被跳过。
+- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；修复提交 `affa4a3` 对应的 run `32693383743` 已全部通过。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
 - 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现、测试和独立复审已完成并提交为 `9f5b951`。
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
 
 当前阻塞：
 
-- 公开仓库 `https://github.com/CrAyoN-V587/win-agent-preflight` 已创建，GitHub CLI 已认证；旧 HEAD `9259a4d` 已推送。
-- 首次 Windows CI run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 已执行但失败：Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过，但两个矩阵 job 都在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。
-- package job 因 `needs: test` 被跳过，远程 sdist/wheel 尚未验证；不能将本地制品验收记录当作远程 package job 结果。
-- 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，已随 `9259a4d` 推送；本阶段不自动修改系统配置。
-- 第六里程碑已完成设计、实现、两轮边界修正和独立复审，并提交为 `f7e3503`，已随 `9259a4d` 推送。
-- 第七里程碑 `support-report` 和第八里程碑 v2 均已完成实现、边界修正、独立复审和本地提交，已随 `9259a4d` 推送。
-- 本次 CLI help cp1252 修复尚未提交/推送；它只涉及 `cli.py`、help 回归测试、CI smoke 与状态/发布文档，待修复后重跑 CI。
+- 无远程仓库、认证、Windows CI 或包验收阻塞。
+- 尚未获得同一台机器在宿主终端与 Agent 实际终端生成的成对快照，因此不能用当前证据断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 提交并推送本次 cp1252 help 修复，重跑 Windows Python 3.12/3.14 矩阵；矩阵通过后确认 package job 的 sdist/wheel 安装验收。
-- 之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 根据真实差异决定下一里程碑，不预先增加自动修复、后台服务或额外平台基础设施。
 
 未提交修改：
 
-- CLI help cp1252 修复及其测试、CI smoke、发布复验和状态文档；公开远程旧 HEAD 为 `9259a4d`，本次修复仍未提交/推送。
+- 无；本次状态文档提交后工作区应保持干净。
 
 ## 关键决策
 
@@ -197,11 +192,12 @@
 | 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部 6 个子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
 | 2026-08-24 | cp1252 修复全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 114 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
+| 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定功能提交：第八里程碑 `9f5b951` 已包含在公开远程旧 HEAD `9259a4d`；本次 cp1252 修复尚未提交/推送，恢复时先检查其工作区差异。
+- 最近稳定功能提交：cp1252 help 修复 `affa4a3`，已推送并通过 Windows CI run `32693383743`。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
@@ -210,7 +206,7 @@
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
-- 首次 GitHub CI 已确认 Python 3.14 安装与 pytest 通过，但根 help 的 cp1252 编码失败使矩阵 job 未收尾；远程 sdist/wheel 仍未验证，本地 Python 3.12 双制品验收不能替代 package job 结果。
+- Windows CI 已确认 Python 3.12/3.14 矩阵和远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
 - `agent-doctor` 只描述当前进程这一次 PATH/launcher 探测上下文；同一 Agent 可能依次尝试多个候选；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
 - WindowsApps alias 或 lstat 受限会保守报告为 `access_denied`/结构化不可用状态，不把它当作命令缺失；其他进程或权限变化可能使后续启动结果不同。
 - `agent-doctor` 不保存或回显 stdout/stderr 原文；成功结果仅保存经脱敏且最多 200 字符的第一条非空版本行，失败结果不保存版本文本。

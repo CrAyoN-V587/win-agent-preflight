@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：CLI help 的 cp1252 兼容修复已实现，尚未提交/推送；公开远程旧 HEAD `9259a4d` 已推送，首次 GitHub runner run 为 `32691934171`。
+- 当前阶段：CLI help 的 cp1252 兼容修复已提交为 `affa4a3` 并推送；Windows CI run `32693383743` 全部通过。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
-- 最近验证：根命令和全部子命令的严格 cp1252 help 子进程测试已通过；完整回归 114 项测试与 Ruff 已通过。真实 v2 Support Report JSON 仍退出 0，顶层 schema 为 2，内嵌 scan/Agent Doctor 为 v1；首次 CI 已运行，但不能据此声称整条 CI 或 Python 3.14 的 help 兼容已通过。
-- 未完成项：推送 cp1252 修复并重跑 CI、远程 sdist/wheel 验收，以及用户在真实宿主终端和各 Agent 实际终端分别生成快照。
-- 下一步：提交/推送 cp1252 修复，重跑两个 Windows 矩阵 job；矩阵通过后确认 package job。GitHub CLI 已认证，无需再次认证。
+- 最近验证：根命令和全部子命令的严格 cp1252 help 子进程测试、完整 114 项测试与 Ruff 已通过；Windows CI 已完成 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装。
+- 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
+- 下一步：采集 host/agent 成对快照，再根据真实差异决定下一里程碑；GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -75,16 +75,16 @@
 
 ## 阶段 5：Windows CI 与包验收
 
-状态：本地验收与独立审阅完成，已提交 `c936e3d`；旧 HEAD 已推送，首次远程 run 已执行但在根 help 编码阶段失败
+状态：本地验收与独立审阅完成，已提交 `c936e3d`；修复后远程 CI 与 package job 已全部通过
 
 - [x] 新增 Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、CLI 帮助和 `RUNNER_TEMP` workspace-probe。
 - [x] 测试全部通过后在 Python 3.12 构建一个 sdist 与一个 wheel，并在两个干净虚拟环境分别安装启动。
 - [x] 非 PR 运行上传 7 天制品；不启用缓存、自动发布、签名、SBOM 或跨平台矩阵。
 - [x] 本机 Python 3.12.7 安装 `build 1.5.0`，完成两个制品的真实构建和安装验收。
 - [x] 首次 GitHub CI run `32691934171` 已验证 Python 3.12/3.14 安装与 pytest，以及 Python 3.12 Ruff；两个矩阵 job 在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。
-- [ ] 修复后重跑两个矩阵 job，并在矩阵通过后确认 package job 的 sdist/wheel；package job 已因 `needs: test` 被跳过，远程制品尚未验证。
+- [x] 修复后两个矩阵 job 与 package job 已通过；sdist/wheel 均在干净环境安装并运行严格 cp1252 根帮助。
 
-本阶段结论：Git、PowerShell 7、Python 3.12.7、Python Launcher 和项目依赖已足够完成本地研发与打包；本机若尚未安装可并行安装 Python 3.14，GitHub CLI 已认证。首次 CI 已证明 3.12/3.14 安装与 pytest 可运行，但根 help 的 cp1252 编码仍需修复后重跑。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
+本阶段结论：Git、PowerShell 7、Python 3.12.7、Python Launcher 和项目依赖已足够完成本地研发与打包；本机若尚未安装可并行安装 Python 3.14，GitHub CLI 已认证。Windows CI 已完整验证 3.12/3.14、严格 cp1252 help 与 package job。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
 
 ## 阶段 6：Agent Doctor 最小版本探针
 
@@ -123,21 +123,21 @@
 
 ## 阶段 9：CLI help 的 cp1252 兼容
 
-状态：实现完成，待提交和远程 CI 验证
+状态：完成，已提交 `affa4a3` 并通过远程 CI
 
 - [x] 所有 Typer 公开 help/docstring 改为纯 ASCII；实际报告输出和中文文档保持原约定。
 - [x] 关闭 Rich Unicode 帮助边框，避免严格 cp1252 控制台在子命令 help 上解码失败。
 - [x] 新增真实 subprocess smoke test：根命令和全部 6 个子命令在 `PYTHONIOENCODING=cp1252:strict` 下严格解码、退出 0，且不触发操作或在临时目录写文件。
 - [x] CI 根命令及 sdist/wheel 安装后的 help smoke 显式设置 `PYTHONIOENCODING=cp1252:strict`；发布复验文档同步。
 - [x] 全量回归 114 项测试、Ruff 和 diff check 已通过；本地修复未改变报告输出。
-- [ ] 推送后在 GitHub Windows runner 上确认 Python 3.12/3.14 的 cp1252 help smoke，并在矩阵通过后确认两个制品；首次 run `32691934171` 已在旧实现的根 help 编码阶段失败。
+- [x] GitHub Windows runner 已确认 Python 3.12/3.14 的 cp1252 help smoke，后续 package job 已完成两个制品的干净环境安装验收。
 
 ## 暂停检查点
 
-- 当前阶段：CLI help cp1252 修复已实现，尚未提交/推送；公开远程旧 HEAD 为 `9259a4d`，首次 CI run 为 `32691934171`。
-- 最近验证：严格 cp1252 help smoke、完整 114 项测试、Ruff 和 diff check 已通过；首次 CI 中 Python 3.12/3.14 安装与 pytest、3.12 Ruff 通过，但两个矩阵 job 在根 help 的 cp1252 `UnicodeEncodeError` 失败；package job 被跳过，远程 sdist/wheel 尚未验证。
-- 未完成项：提交并推送 cp1252 修复、重跑 Windows CI、完成远程 sdist/wheel 验收，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步：完成本次 help 修复审阅并提交/推送，重跑 CI；GitHub CLI 已认证，无需再次认证。
+- 当前阶段：CLI help cp1252 修复已提交并推送；Windows CI run `32693383743` 全部通过。
+- 最近验证：严格 cp1252 help smoke、完整 114 项测试、Ruff、Python 3.12/3.14 矩阵、workspace probe、sdist/wheel 构建与两个干净环境安装均通过。
+- 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
+- 下一步：采集第一组成对快照；GitHub CLI 已认证，无需再次认证。
 - 恢复命令：
 
 ```powershell
@@ -185,10 +185,11 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部 6 个子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
 | 2026-08-24 | cp1252 修复全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 114 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
+| 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 
 ## 下一里程碑验收
 
-- 推送 cp1252 修复后，GitHub Windows runner 的 Python 3.12 与 3.14 矩阵 job 全部通过；
-- 矩阵通过后，package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
+- [x] GitHub Windows runner 的 Python 3.12 与 3.14 矩阵 job 全部通过；
+- [x] package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
 - 用户在宿主与实际 Agent 上分别生成脱敏快照并完成 compare；
 - 不增加自动发布、缓存、签名或额外平台基础设施。

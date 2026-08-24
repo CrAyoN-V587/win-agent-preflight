@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库已创建：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。旧 HEAD `9259a4d` 已推送；首次 Windows CI run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 已执行但失败：Python 3.12/3.14 的安装与 pytest 均通过，Python 3.12 Ruff 通过，但两个矩阵 job 都在根 `--help` 的 cp1252 `UnicodeEncodeError` 处失败，package job 因 `needs: test` 被跳过，因此远程 sdist/wheel 尚未验证。当前 cp1252 help 修复仍在本地未提交、未推送，待修复后重跑 CI。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。cp1252 help 修复提交 `affa4a3` 已推送，Windows CI run [`32693383743`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) 已全部通过：Python 3.12/3.14 测试、严格 cp1252 帮助、Windows 工作区探针、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传均完成。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -27,7 +27,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 ## 环境
 
 - 设计目标：Windows；
-- 安装元数据要求 Python `>=3.12`；当前本机验证环境为 Python 3.12.7；首次 CI 已确认 Python 3.12/3.14 安装与 pytest 通过，但两个矩阵 job 仍在根 help 的 cp1252 编码阶段失败；
+- 安装元数据要求 Python `>=3.12`；当前本机验证环境为 Python 3.12.7，Windows CI 已验证 Python 3.12/3.14；
 - 运行时：`typer>=0.16,<1`；
 - 开发：`build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 
@@ -57,9 +57,9 @@ py -3.12 -m build --sdist --wheel
 
 ## CI 与包验收
 
-`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 中，两个矩阵 job 已完成安装、pytest（以及 3.12 Ruff），但在根 `--help` 的 cp1252 `UnicodeEncodeError` 处失败，package job 因 `needs: test` 被跳过；旧 HEAD 的远程制品验收尚未发生。
+`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；修复后的 run `32693383743` 已完成整条流水线和制品上传。
 
-这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.14 的安装与 pytest 已在首次 GitHub CI run 通过；根 help 的 cp1252 修复和 sdist/wheel 仍需下一次 CI run 验证。
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help 和 sdist/wheel 已在修复后的 GitHub CI run 中通过。
 
 只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
 
