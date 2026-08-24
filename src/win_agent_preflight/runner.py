@@ -17,6 +17,8 @@ class CommandExecution:
     elapsed_ms: int = 0
     timed_out: bool = False
     error: str | None = None
+    error_type: str | None = None
+    winerror: int | None = None
 
     @property
     def succeeded(self) -> bool:
@@ -89,6 +91,7 @@ def _subprocess_executor(
             elapsed_ms=_elapsed_ms(started),
             timed_out=True,
             error=f"timeout after {timeout:g}s",
+            error_type=type(exc).__name__,
         )
     except OSError as exc:
         return CommandExecution(
@@ -96,6 +99,8 @@ def _subprocess_executor(
             returncode=None,
             elapsed_ms=_elapsed_ms(started),
             error=f"{type(exc).__name__}: {exc}",
+            error_type=type(exc).__name__,
+            winerror=getattr(exc, "winerror", None),
         )
 
 

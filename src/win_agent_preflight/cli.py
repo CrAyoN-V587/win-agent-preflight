@@ -7,9 +7,15 @@ from pathlib import Path
 
 import typer
 
+from .agent_doctor import (
+    AgentDoctorInputError,
+    run_agent_doctor,
+)
 from .checks import scan_environment
 from .compare import render_compare_console, render_compare_json
 from .reporting import (
+    render_agent_doctor_console,
+    render_agent_doctor_json,
     render_console,
     render_json,
     render_workspace_probe_console,
@@ -96,6 +102,33 @@ def compare(
         else render_compare_console(result)
     )
     if not result.equivalent:
+        raise typer.Exit(code=1)
+
+
+@app.command("agent-doctor")
+def agent_doctor(
+    agents: list[str] | None = typer.Option(
+        None,
+        "--agent",
+        help="要检查的 Agent，可重复；默认 codex、claude、dsh",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="输出独立的 v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
+    timeout: float = typer.Option(5.0, min=0.1, help="每个版本探针的超时秒数"),
+) -> None:
+    """只对 PATH 中已发现的 Agent 启动器执行一次 --version。"""
+
+    try:
+        report = run_agent_doctor(agents=agents, timeout=timeout)
+    except AgentDoctorInputError as exc:
+        typer.echo(f"agent-doctor error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_agent_doctor_json(report, pretty=pretty)
+        if json_output
+        else render_agent_doctor_console(report)
+    )
+    if report.has_unusable_agent:
         raise typer.Exit(code=1)
 
 

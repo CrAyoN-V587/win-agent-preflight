@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-当前版本已完成第四个可运行里程碑，并已加入第五里程碑的 Windows CI 与包验收配置，提供 `scan`、`snapshot`、`compare` 和 `workspace-probe` 命令：
+当前版本已完成第六个可运行里程碑的本地实现与验证（待提交和首次 CI），提供 `scan`、`snapshot`、`compare`、`workspace-probe` 和 `agent-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -17,6 +17,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 - 将有限的宿主事实和同次 `scan` 保存为 v1 快照；
 - 比较两个快照的命令、Shell、PATH/PATHEXT 和检查证据差异；
 - 在显式授权下验证当前 Windows 进程对指定目录的创建、写入、读取、重命名、删除和清理能力；
+- 只对 PATH 中已解析的 Codex、Claude Code、DeepSeek Harness 启动器执行一次 `--version`，输出独立 Agent 状态报告；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
 真实 Agent 宿主终端快照仍需在各上下文中分别采集，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
@@ -40,6 +41,8 @@ agent-preflight scan --json --pretty
 agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 agent-preflight compare .\snapshots\host.json .\snapshots\host.json --json
 agent-preflight workspace-probe --target . --allow-write --json --pretty
+agent-preflight agent-doctor --json --pretty
+agent-preflight agent-doctor --agent codex --agent claude
 ```
 
 构建源码包和 wheel 的本地验收见 [`docs/release-check.md`](docs/release-check.md)：
@@ -63,7 +66,9 @@ py -3.12 -m build --sdist --wheel
 
 `workspace-probe` 必须同时提供现有目录 `--target` 和显式 `--allow-write`。它只在目标目录的直接子目录创建本次随机探针，完成六项固定操作，并在复核 Windows 对象身份后清理本次路径；成功为 0，能力失败或残留为 1，输入拒绝为 2，Ctrl-C 为 130。JSON 使用独立的 `WorkspaceProbeReport v1`，包含 `successful` 和相对 `residual_paths`，不回显探针内容。结论只适用于本次命令、目标目录和当前进程上下文；不遍历目标、不递归清理历史残留。
 
-可选 Agent 未安装会显示为 `warning`，不是 `fail`。`fail` 结果必须携带证据；无法判断时使用 `unknown`。
+`agent-doctor` 默认按 `codex`、`claude`、`dsh` 固定顺序检查，可重复 `--agent` 选择子集并自动去重。它只读取 PATH 中的 `.exe`、`.cmd`、`.bat`、`.ps1` 普通启动器，发现后才经 Runner 执行一次 `--version`，不会调用 `login`、`doctor`、`npx`、网络或网页命令。只有退出码为 0 且 stdout/stderr 至少有一条非空文本时才是 `usable`；成功结果保存经脱敏、最多 200 字符的第一条非空版本行，空输出归类为 `version_probe_failed`。状态为 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed` 或 `usable`；全部未安装退出 0，已解析但存在不可用状态退出 1，输入错误退出 2。输出为独立的 `AgentDoctorReport v1`，固定包含 `kind=agent_doctor` 和 `offline=true`；失败只包含结构化错误类型/Win32 错误码/返回码，不回显 stdout/stderr。
+
+上面的 `warning`/`fail` 语义仅适用于 `scan` 的 `CheckResult`：可选 Agent 未安装会显示为 `warning`，不是 `fail`。`agent-doctor` 使用独立报告，未发现命令明确记录为 `command_not_found`，按约定退出 0；`scan` 的 `fail` 结果必须携带证据，无法判断时使用 `unknown`。
 
 `windows.path_refresh` 只在 Windows 上读取 `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` 和 `HKCU\Environment` 的 `Path`。读取是只读的，不修改注册表、PATH 或执行策略。缺失键/值视为空的完整事实；读取异常、类型错误或未解析变量会报告为 `unknown`，但如果另一 scope 已证明存在未继承目录，结果仍为 `warning`。旧的 `user_path` 参数仍可用于测试注入。
 
@@ -93,7 +98,7 @@ python -m win_agent_preflight scan --json
 - 尚未执行真实 Agent 沙箱能力探针，快照差异本身不等于权限结论；
 - `workspace-probe` 只验证一个指定目录的最小文件生命周期，不代表整个 Agent 或系统权限；未知残留不会自动删除；
 - `workspace-probe` 假设没有其他进程在对象身份复核与紧随其后的路径操作之间恶意替换同名文件或目录；当前不引入 Windows 句柄级删除来消除这一 TOCTOU 窗口；
-- 不可访问的 WindowsApps 执行别名会被安全跳过，但尚未单独分类为“发现但不可检查”。
+- WindowsApps 执行别名或 lstat 权限异常会保留为 `access_denied` 证据；这不等于 Agent 已成功可用，仍需在权限合适的宿主上下文中复验。
 
 ## 许可证
 

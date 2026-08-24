@@ -7,6 +7,11 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from win_agent_preflight import cli
+from win_agent_preflight.agent_doctor import (
+    AgentDoctorReport,
+    AgentDoctorResult,
+    AgentDoctorState,
+)
 from win_agent_preflight.models import CheckResult, CheckStatus, ScanReport
 from win_agent_preflight.snapshot import capture_snapshot, write_snapshot
 
@@ -113,3 +118,74 @@ def test_compare_missing_file_is_redacted_tool_error(tmp_path: Path) -> None:
     assert result.exit_code == 2
     profile = os.environ.get("USERPROFILE")
     assert profile is None or profile.casefold() not in result.output.casefold()
+
+
+def test_agent_doctor_cli_json_preserves_fixed_selection_order(monkeypatch) -> None:
+    report = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.COMMAND_NOT_FOUND,
+                summary="missing",
+            ),
+            AgentDoctorResult(
+                agent="dsh",
+                command="dsh",
+                state=AgentDoctorState.COMMAND_NOT_FOUND,
+                summary="missing",
+            ),
+        ),
+    )
+    received: list[object] = []
+
+    def fake_doctor(*, agents, timeout):
+        received.append(agents)
+        assert timeout == 5.0
+        return report
+
+    monkeypatch.setattr(cli, "run_agent_doctor", fake_doctor)
+    result = CliRunner().invoke(
+        cli.app,
+        ["agent-doctor", "--agent", "dsh", "--agent", "codex", "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert received == [["dsh", "codex"]]
+    payload = json.loads(result.stdout)
+    assert payload["kind"] == "agent_doctor"
+    assert payload["offline"] is True
+    assert [item["agent"] for item in payload["agents"]] == ["codex", "dsh"]
+
+
+def test_agent_doctor_cli_capability_failure_is_exit_one_json(monkeypatch) -> None:
+    report = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="denied",
+                evidence=("structured failure",),
+                details={"attempts": [{"error_type": "PermissionError", "winerror": 5}]},
+            ),
+        ),
+    )
+    monkeypatch.setattr(cli, "run_agent_doctor", lambda **kwargs: report)
+
+    result = CliRunner().invoke(cli.app, ["agent-doctor", "--agent", "codex", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["agents"][0]["state"] == "access_denied"
+
+
+def test_agent_doctor_cli_rejects_unknown_agent() -> None:
+    result = CliRunner().invoke(cli.app, ["agent-doctor", "--agent", "unknown"])
+
+    assert result.exit_code == 2
+    assert "unsupported agent" in result.stderr

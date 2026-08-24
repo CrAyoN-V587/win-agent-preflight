@@ -6,6 +6,7 @@ import ntpath
 import os
 import re
 import shutil
+import stat
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,7 @@ DEFAULT_PATHEXT = (
     ".MSC",
 )
 SCRIPT_COMMANDS = frozenset({"npm", "pnpm", "npx", "yarn"})
+AGENT_LAUNCHER_EXTENSIONS = (".exe", ".cmd", ".bat", ".ps1")
 REGISTRY_SCOPES = ("machine", "user")
 RegistryScope = Literal["machine", "user"]
 _REGISTRY_SUBKEY = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
@@ -118,6 +120,24 @@ class _PathEntry:
     unresolved: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class CommandPathError:
+    """Structured evidence for a path that could not be inspected."""
+
+    path: str
+    error_type: str
+    winerror: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AgentCommandDiscovery:
+    """Agent launcher paths found without executing any command."""
+
+    candidates: tuple[CommandCandidate, ...] = ()
+    non_executable_paths: tuple[str, ...] = ()
+    inaccessible_paths: tuple[CommandPathError, ...] = ()
+
+
 def redact_text(value: str, *, user_profile: str | None = None) -> str:
     """Replace the current user's home directory without exposing its name."""
 
@@ -126,7 +146,13 @@ def redact_text(value: str, *, user_profile: str | None = None) -> str:
     profile = user_profile or os.environ.get("USERPROFILE")
     if not profile:
         return value
-    return re.sub(re.escape(profile), "%USERPROFILE%", value, flags=re.IGNORECASE)
+    normalized_profile = profile.rstrip("\\/")
+    if not normalized_profile:
+        return value
+    profile_parts = re.split(r"[\\/]", normalized_profile)
+    profile_pattern = r"[\\/]".join(re.escape(part) for part in profile_parts)
+    profile_pattern += r"(?=$|[\\/])"
+    return re.sub(profile_pattern, "%USERPROFILE%", value, flags=re.IGNORECASE)
 
 
 def discover_command(
@@ -190,6 +216,108 @@ def discover_command(
                 CommandCandidate(name=name, path=redact_text(found, user_profile=user_profile))
             )
     return tuple(candidates)
+
+
+def discover_agent_command_details(
+    name: str,
+    *,
+    env: Mapping[str, str] | None = None,
+    user_profile: str | None = None,
+) -> AgentCommandDiscovery:
+    """Resolve known agent launchers without starting them.
+
+    Agent names are intentionally checked against only the four Windows
+    launcher forms used by this project.  ``lstat`` is used so an inaccessible
+    WindowsApps alias is retained as structured evidence instead of being
+    silently classified as a missing command.
+    """
+
+    environment = env if env is not None else os.environ
+    path_separator = ";" if os.name == "nt" else os.pathsep
+    path_value = environment.get("PATH", "")
+    extensions = _agent_launcher_extensions(environment.get("PATHEXT", ""))
+    candidates: list[CommandCandidate] = []
+    non_executable: list[str] = []
+    inaccessible: list[CommandPathError] = []
+    seen: set[str] = set()
+
+    for raw_directory in path_value.split(path_separator):
+        directory = raw_directory.strip().strip('"')
+        if not directory:
+            continue
+        directory_path = Path(directory)
+        try:
+            os.lstat(directory_path)
+        except OSError as exc:
+            if _is_missing_path_error(exc):
+                continue
+            inaccessible.append(_path_error(directory_path, exc, user_profile=user_profile))
+            continue
+
+        for extension in extensions:
+            candidate_path = directory_path / f"{name}{extension.lower()}"
+            display_path = redact_text(str(candidate_path), user_profile=user_profile)
+            key = os.path.normcase(str(candidate_path))
+            if key in seen:
+                continue
+            try:
+                info = os.lstat(candidate_path)
+            except OSError as exc:
+                if _is_missing_path_error(exc):
+                    continue
+                inaccessible.append(_path_error(candidate_path, exc, user_profile=user_profile))
+                continue
+            seen.add(key)
+            if not stat.S_ISREG(info.st_mode):
+                non_executable.append(display_path)
+                continue
+            candidates.append(
+                CommandCandidate(name=name, path=display_path, source="PATH")
+            )
+
+    return AgentCommandDiscovery(
+        candidates=tuple(candidates),
+        non_executable_paths=tuple(non_executable),
+        inaccessible_paths=tuple(inaccessible),
+    )
+
+
+def discover_agent_command(
+    name: str,
+    *,
+    env: Mapping[str, str] | None = None,
+    user_profile: str | None = None,
+) -> tuple[CommandCandidate, ...]:
+    """Return only regular agent launcher candidates in PATH order."""
+
+    return discover_agent_command_details(
+        name, env=env, user_profile=user_profile
+    ).candidates
+
+
+def _agent_launcher_extensions(pathext: str) -> tuple[str, ...]:
+    requested = tuple(
+        f".{item.strip().lstrip('.').lower()}"
+        for item in pathext.split(";")
+        if item.strip()
+    )
+    ordered: list[str] = []
+    for extension in (*requested, *AGENT_LAUNCHER_EXTENSIONS):
+        if extension in AGENT_LAUNCHER_EXTENSIONS and extension not in ordered:
+            ordered.append(extension)
+    return tuple(ordered)
+
+
+def _is_missing_path_error(exc: OSError) -> bool:
+    return isinstance(exc, FileNotFoundError) or getattr(exc, "winerror", None) in (2, 3)
+
+
+def _path_error(path: Path, exc: OSError, *, user_profile: str | None) -> CommandPathError:
+    return CommandPathError(
+        path=redact_text(str(path), user_profile=user_profile),
+        error_type=type(exc).__name__,
+        winerror=getattr(exc, "winerror", None),
+    )
 
 
 class _WinregValueReader:

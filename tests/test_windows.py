@@ -394,3 +394,13 @@ def test_user_path_is_redacted() -> None:
     assert redact_text(r"C:\Users\alice\repo\file.txt", user_profile=r"C:\Users\alice") == (
         r"%USERPROFILE%\repo\file.txt"
     )
+
+
+def test_user_path_redaction_accepts_mixed_separators_and_respects_boundary() -> None:
+    profile = r"C:\Users\alice"
+
+    assert redact_text("C:/Users/alice/repo/file.txt", user_profile=profile) == (
+        "%USERPROFILE%/repo/file.txt"
+    )
+    unchanged = "C:/Users/alice2/repo/file.txt"
+    assert redact_text(unchanged, user_profile=profile) == unchanged

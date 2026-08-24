@@ -6,13 +6,13 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断和第四里程碑的 `workspace-probe` 已稳定；第五里程碑补充 Windows CI 与包验收配置。
+- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe` 和 Windows CI/包验收已稳定；第六里程碑增加独立 `agent-doctor`。
 
 ## 环境和命令
 
 - 安装/准备：`python -m pip install -e ".[dev]"`
 - 构建验收：`python -m build --sdist --wheel`（完整步骤见 `docs/release-check.md`）
-- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`
+- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`
 - 针对性测试：`python -B -m pytest -q -p no:cacheprovider`
 - 完整测试：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 - 构建或检查：`python -m ruff check . --no-cache`；打包验收不得替代测试。
@@ -20,14 +20,14 @@
 
 ## 项目约定
 
-- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集；`checks.py` 诊断分类；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`reporting.py` 输出；`cli.py` 参数与编排。
+- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集和 Agent launcher lstat；`checks.py` 诊断分类；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`reporting.py` 输出；`cli.py` 参数与编排。
 - 代码风格：Python 类型标注、不可变数据模型优先；公共序列化字段使用稳定 snake_case。
 - 数据和配置位置：扫描只读取当前环境，不保存配置和凭据。
 - 不得修改的上游或生成文件：不触碰工作区其他项目；不创建项目级 `.codex`。
 
 ## 修改边界
 
-- 当前允许的结构调整：围绕 `scan`、`snapshot`/`compare` 稳定边界和只读注册表 PATH 刷新诊断的最小模块调整。
+- 当前允许的结构调整：围绕既有 CLI 稳定边界、只读注册表 PATH 刷新诊断和独立 `agent-doctor` 的最小模块调整。
 - 需要保留的数据或接口：`CheckResult` JSON 字段、`Runner` 注入边界和 `%USERPROFILE%` 脱敏规则。
 - 默认不兼容的旧实现：项目尚无旧版本；不为假设中的 Linux/macOS 兼容矩阵设计。
 
@@ -41,10 +41,15 @@
 - `workspace-probe` 只创建目标直接子目录中的本次随机探针；按 Windows 对象身份复核本次已知两个文件和空目录后做路径级清理，不遍历目标、不递归删除、不处理历史残留。
 - `workspace-probe` 面向非对抗的本地诊断；不支持其他进程在“身份复核—路径操作”的瞬间替换同名对象，也不为消除该 TOCTOU 窗口引入句柄级安全实现。
 - `workspace-probe` 的固定六项使用独立 v1 schema，不修改 `scan`/`snapshot` 的 JSON 字段和退出语义。
+- `agent-doctor` 使用独立 AgentDoctorReport v1，不复用 `CheckResult`，不修改 `scan`/`snapshot`/`workspace-probe` schema 或 checks 语义。
+- `agent-doctor` 默认只检查 `codex`、`claude`、`dsh`；重复 `--agent` 固定去重顺序；只对 PATH 中已解析的 `.exe`/`.cmd`/`.bat`/`.ps1` 普通 launcher 执行一次 `--version`。
+- `agent-doctor` 只有 `--version` 退出 0 且 stdout/stderr 至少有一条非空文本时才报告 `usable`；成功结果保存脱敏后的第一条非空版本行（最多 200 字符），报告固定包含 `kind=agent_doctor` 和 `offline=true`。
+- `agent-doctor` 禁止 login/doctor/npx/web/网络调用；lstat/Runner 错误只使用结构化 `error_type`/`winerror`/返回码/超时，不回显 stdout/stderr。
+- `agent-doctor` 的 `command_not_found` 退出 0；其他非 `usable` 状态退出 1；输入错误退出 2。WindowsApps alias/lstat 异常不得降级为 command_not_found。
 - CI 只运行在 Windows，测试 Python 3.12/3.14；Ruff 只在 3.12 运行；不启用 Actions 缓存。
 - CI 包验收只构建并安装 sdist/wheel，不自动发布 PyPI、创建 Release、签名、生成 SBOM 或构建其他平台制品；Python 3.14 等待首次 CI 验证。
 - 不采集或打印密钥值；不计算哈希。
-- 未安装的可选 Agent 为 `warning`，不是 `fail`。
+- 未安装的可选 Agent 为 `warning`，不是 `fail`；此规则仅适用于 `scan` 的 `CheckResult`，`agent-doctor` 使用 `command_not_found` 并按约定退出 0。
 - `fail` 必须带证据；证据不足使用 `unknown`。
 
 ## Git

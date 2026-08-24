@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第五里程碑已提交，待远程推送和首次 CI）
+状态：进行中（第六里程碑 `agent-doctor` 已实现并通过本地验证，待提交；第五里程碑待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第五里程碑——增加 Windows CI、sdist/wheel 构建和干净虚拟环境安装验收。
+当前阶段：第六里程碑——增加独立 `agent-doctor`，检查已解析的本地 Agent 启动器版本探针。
 
-下一步：创建/更新远程并推送；等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：提交第六里程碑；随后恢复认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
-最近验证：完整 75 项测试与 Ruff 通过；`build 1.5.0` 已生成 1 个 sdist 和 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI。第五里程碑尚未在 GitHub runner 执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
+最近验证：第六里程碑全量 96 项测试与 Ruff 通过；第五里程碑的 `build 1.5.0` 已生成并验收 sdist/wheel。真实 `agent-doctor --json --pretty` 已执行并报告当前 Codex WindowsApps launcher 为 `access_denied`、其余默认 Agent 为 `command_not_found`；第五里程碑尚未在 GitHub runner 执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -42,6 +42,7 @@
 - Windows 路径、PATH/PATHEXT、候选集合和 evidence 的规范化比较。
 - 显式 `--target PATH --allow-write` 的 Windows 工作区写入、读取、重命名、删除和清理能力探针；结论只适用于本次命令、目标目录和当前进程上下文。
 - Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、`RUNNER_TEMP` workspace-probe 和 Python 3.12 的 sdist/wheel 干净环境安装验收。
+- 独立 `agent-doctor`：默认/重复 `--agent` 选择、PATH 中 `.exe`/`.cmd`/`.bat`/`.ps1` launcher 解析、一次 `--version` 探针和脱敏状态报告。
 
 不包含：
 
@@ -51,13 +52,14 @@
 - GUI、数据库和 LLM 调用。
 - 递归删除、历史探针清理、目标目录遍历、ACL/提权审计或自动修复。
 - PyPI/Release 自动发布、签名、SBOM、Actions 缓存和跨平台 CI/制品。
+- `agent-doctor` 不执行 login、doctor、npx、网页或网络调用，不改变既有 scan/snapshot/workspace schema。
 
 ## 成功标准
 
 - [x] 首个切片可通过一条命令执行 `scan`，并同时支持 Console 与 JSON。
 - [x] 命令缺失、多候选、超时、PowerShell 脚本阻止和 PATH 未刷新注入场景均有测试。
 - [x] 只读采集 HKLM/HKCU PATH，完成非注入的 PATH 未刷新诊断；异常/类型错误保持为不完整事实。
-- [x] 可选 Agent 未安装不产生 `fail`；所有 `fail` 都包含证据。
+- [x] `scan` 中可选 Agent 未安装不产生 `fail`；所有 `scan` 的 `fail` 都包含证据，`agent-doctor` 使用独立的 `command_not_found`。
 - [x] 用户目录统一脱敏为 `%USERPROFILE%`，不输出密钥值或哈希。
 - [x] PROJECT.md 与 `docs/PROGRESS.md` 能在暂停后直接恢复。
 - [x] probe 只接受显式目标和 `--allow-write`，输入拒绝前不写入；报告独立于 scan/snapshot schema。
@@ -65,6 +67,7 @@
 - [x] 创建 Windows-only CI 配置：Python 3.12/3.14 测试、3.12 Ruff、CLI/runner-temp probe 和测试后包验收。
 - [x] 配置 sdist/wheel 各一个、干净虚拟环境安装和非 PR 7 天制品上传；不配置自动发布。
 - [ ] GitHub 首次 CI 在 Python 3.12/3.14 均通过；3.14 仍待实际 runner 验证。
+- [x] `agent-doctor` 全量回归测试、Ruff 和真实 CLI 验收通过；当前真实上下文结果为 Codex `access_denied`、Claude/DSH `command_not_found`。
 
 ## 计划
 
@@ -75,7 +78,7 @@
 - [x] 5. 增加有边界的 `workspace-probe`，验证当前进程上下文的最小文件能力并保留清理证据。
 - [x] 6. 增加 Windows CI、包构建验收和本地 release-check 文档。
 - [ ] 7. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
-- [ ] 8. 增加 Agent 原生 Doctor 适配器；发布仍保持显式、手动边界。
+- [x] 8. 增加独立 `agent-doctor` 版本探针和结构化状态报告；发布仍保持显式、手动边界。
 
 ## 技术和环境
 
@@ -84,7 +87,7 @@
 - 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
 - 本地包验收：`py -3.12 -m build --sdist --wheel`，再按 `docs/release-check.md` 分别安装两个制品。
-- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`
+- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`、`agent-preflight agent-doctor --json --pretty`
 - 针对性验证命令：`python -B -m pytest -q -p no:cacheprovider`
 - 完整验证命令：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 
@@ -109,21 +112,24 @@
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
 - Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收配置。
+- 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
 
 当前阻塞：
 
 - 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
 - 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
+- 第六里程碑尚未提交；当前改动仅涉及委派的 Agent Doctor 源码、测试和同步文档。
 
 下一步：
 
 - 创建/更新 GitHub 公开仓库并推送，观察 Python 3.12/3.14 CI 与包 job；
 - 之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 由主 Agent 审阅当前差异后形成第六里程碑独立提交；随后恢复 GitHub 认证并推送。
 
 未提交修改：
 
-- 无；本次状态文档提交后应保持工作区干净。
+- 第六里程碑的 `agent_doctor.py`、Runner/Windows/reporting/CLI 增量、对应测试和同步文档；尚未提交。
 
 ## 关键决策
 
@@ -133,7 +139,7 @@
 | Snapshot 内嵌已有 scan v1 | 保持 scan JSON 语义唯一，快照只增加有限宿主事实 | 2026-08-24 |
 | Compare 忽略 label/time/summary/candidate_count | 这些字段会在同一环境重复运行时自然变化，不应制造实质差异 | 2026-08-24 |
 | 外部命令统一经可注入 Runner | 让超时、启动失败和环境差异可以稳定复现 | 2026-08-24 |
-| 可选 Agent 缺失为 warning | “未安装”不是 Agent 故障，避免误报 | 2026-08-24 |
+| `scan` 中可选 Agent 缺失为 warning | “未安装”不是 Agent 故障，避免误报；`agent-doctor` 使用独立的 `command_not_found` | 2026-08-24 |
 | 注册表 PATH 只读且异常不降级为空 | 区分真实空值和权限/类型错误，避免误报 PATH 已刷新 | 2026-08-24 |
 | 刷新检查永不 fail | PATH 缺失/不完整是环境事实不足或提示，不是项目命令本身已证实失败 | 2026-08-24 |
 | probe 使用独立 v1 schema | 有副作用的最小能力验证不混入只读 scan/snapshot 协议 | 2026-08-24 |
@@ -142,6 +148,9 @@
 | probe 采用非对抗本地并发假设 | 对象身份变化会保守拒绝，但首版不为身份核对与路径删除之间的瞬时替换引入 Win32 句柄级安全实现 | 2026-08-24 |
 | CI 只验证 Windows Python 3.12/3.14 和包安装 | 项目目标是 Windows Agent 环境；保持最短反馈路径，不引入跨平台矩阵 | 2026-08-24 |
 | 构建验收不等于发布 | 本阶段只需要确认 sdist/wheel 可安装并启动 CLI，发布、签名和 SBOM 留待明确发布阶段 | 2026-08-24 |
+| Agent Doctor 使用独立 v1 状态 | Agent 启动器的“未发现”和“已发现但不可用”不应改变 scan/snapshot/workspace 的既有 schema/退出语义 | 2026-08-24 |
+| Agent Doctor 只探测已解析 launcher 的 `--version` | 保持本地、低副作用和可复验边界，不触发 login、doctor、npx、网络或网页流程 | 2026-08-24 |
+| Agent Doctor 保留 lstat/Runner 结构化错误 | WindowsApps alias 和权限异常不能被静默降级为 command_not_found；失败证据不回显 stdout/stderr | 2026-08-24 |
 
 ## 验证证据
 
@@ -160,20 +169,26 @@
 | 2026-08-24 | 标准打包工具 | `python -m pip install -e ".[dev]"`、`python -m build --version` | 安装成功；build 1.5.0 |
 | 2026-08-24 | 本地双制品构建 | `python -m build --sdist --wheel` | 默认隔离构建成功生成 `win_agent_preflight-0.1.0.tar.gz` 与 `win_agent_preflight-0.1.0-py3-none-any.whl`，各 1 个 |
 | 2026-08-24 | 干净环境安装 | 在 `.artifacts\\sdist-check` 与 `.artifacts\\wheel-check` 分别安装制品并运行 `python -m win_agent_preflight --help` | 两个环境均退出 0 |
+| 2026-08-24 | 第六里程碑专项测试 | `python -B -m pytest tests/test_agent_doctor.py tests/test_cli.py tests/test_runner.py -q -p no:cacheprovider` | Agent Doctor 场景与 CLI/Runner 回归测试通过 |
+| 2026-08-24 | 第六里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 96 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
+| 2026-08-24 | Agent Doctor 真实 CLI | `python -B -m win_agent_preflight agent-doctor --json --pretty` | 退出 1；Codex WindowsApps launcher 为 `access_denied`（WinError 5），Claude/DSH 为 `command_not_found`；未回显 stdout/stderr |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第五里程碑 `c936e3d`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第五里程碑 `c936e3d`；第六里程碑尚未提交，提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
-- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`py -3.12 -m build --sdist --wheel`；`agent-preflight scan --json`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
+- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`py -3.12 -m build --sdist --wheel`；`agent-preflight scan --json`；`agent-preflight agent-doctor --json --pretty`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
 
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
 - 第五里程碑的 Python 3.14 兼容性必须以首次 GitHub CI 结果确认；本地 Python 3.12 双制品构建和安装已通过，不能替代 runner 结果。
+- `agent-doctor` 只判断一次当前进程 PATH/launcher 版本探针；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
+- WindowsApps alias 或 lstat 受限会保守报告为 `access_denied`/结构化不可用状态，不把它当作命令缺失；其他进程或权限变化可能使后续启动结果不同。
+- `agent-doctor` 不保存或回显 stdout/stderr 原文；成功结果仅保存经脱敏且最多 200 字符的第一条非空版本行，失败结果不保存版本文本。
 - `npm.ps1` 的阻止判断来自实际 Runner 结果和 PowerShell 事实，不会修改执行策略。
 - 注册表 PATH 只读采集已实现；非 Windows 平台、读取异常、类型错误或未解析变量返回 `unknown`，但另一 scope 已证明缺失时返回 `warning`。
 - 命令发现遇到不可访问的 PATH 候选会跳过并继续扫描；当前不会把该情况细分为“不可访问候选”，只在后续版本增加精确分类。

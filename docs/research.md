@@ -2,14 +2,21 @@
 
 ## 研究结论
 
-Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问题，而是分层问题：当前进程 PATH、PowerShell 解析、脚本执行策略、子进程继承、Agent 沙箱和工作区能力可能不同。已有 Codex/Claude 等各自的 Doctor，但它们只覆盖自己的产品，不能形成跨 Agent 的中立事实报告。
+Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问题，而是分层问题：当前进程 PATH、PowerShell 解析、脚本执行策略、子进程继承、Agent 沙箱和工作区能力可能不同。产品自带诊断通常只覆盖自己的产品，不能形成跨 Agent 的中立事实报告。
 
-首阶段因此只做确定性本地扫描，优先覆盖用户已经遇到的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突。
+首阶段因此只做确定性本地扫描，优先覆盖用户已经遇到的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突；第六里程碑的 `agent-doctor` 进一步只探测已解析启动器的离线版本能力。
+
+## 官方 CLI 事实与本项目边界（2026-08-24）
+
+- [OpenAI Codex 官方仓库](https://github.com/openai/codex) 是本地终端 coding agent。本项目只执行已解析本地 `codex --version`；不调用 `codex login status`，也不执行交互式 `debug-config`，因为账户状态和交互配置诊断不属于离线 launcher 可用性探针。
+- [Claude Code 官方安装文档](https://code.claude.com/docs/en/getting-started) 建议用 `claude --version` 验证安装，并提供只读的 `claude doctor` 安装/设置诊断。本项目的跨 Agent 探针只执行本地 `claude --version`，不触发 `doctor`、登录、网络或其他交互流程。
+- [DeepSeek Harness 官方页面](https://www.deepseek.com/harness/en/) 和[官方仓库](https://github.com/deepseek-ai/deepseek-harness)均标注 DSH 为 developer preview。官方快速开始使用 `npx @deepseek-ai/dsh web`，但本项目明确不运行 `npx` 或 `web`，只在 PATH 已有本地 launcher 时执行 `dsh --version`。
+
+这些边界使报告可重复、低副作用，并避免把登录、联网、包管理器安装或网页启动误判为本地命令可用性。
 
 ## 相似实现与差异
 
-- OpenAI Codex 的 `doctor`（上游仓库中的 CLI 检查）说明了版本、配置、网络、MCP 和沙箱可以分项报告；本项目不重写其内部检查，而预留适配器边界。
-- Claude Code、Gemini CLI 等也提供产品内诊断；它们不能比较 Windows 宿主与不同 Agent 的命令解析结果。
+- Codex、Claude Code 和 DSH 各自的 CLI/文档提供产品内入口；本项目不复刻它们的内部诊断，而报告跨 Agent 都能理解的 launcher 状态和结构化 Runner 证据。
 - 第三方跨 Agent 工具多集中于配置同步或 Agent 编排；本项目首阶段保持离线、只读和证据优先。
 
 ## 真实场景

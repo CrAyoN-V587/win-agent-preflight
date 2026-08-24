@@ -21,3 +21,18 @@ def test_runner_injects_timeout_and_arguments() -> None:
     result = Runner(executor=executor).run(("slow-tool", "--version"), timeout=0.25)
     assert result.timed_out is True
     assert received == [(("slow-tool", "--version"), 0.25)]
+
+
+def test_runner_keeps_structured_os_error_fields(monkeypatch) -> None:
+    def fail(*args, **kwargs):
+        del args, kwargs
+        error = PermissionError("private detail")
+        error.winerror = 5  # type: ignore[attr-defined]
+        raise error
+
+    monkeypatch.setattr("win_agent_preflight.runner.subprocess.run", fail)
+    result = Runner().run(("blocked.exe", "--version"))
+
+    assert result.error_type == "PermissionError"
+    assert result.winerror == 5
+    assert "private detail" in (result.error or "")

@@ -9,6 +9,7 @@
 ```text
 cli.py
   ├─ checks.py（诊断分类与扫描编排）
+  ├─ agent_doctor.py（AgentDoctorReport v1 与最小版本探针）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
        ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
@@ -19,9 +20,10 @@ cli.py
 
 - `models.py` 不调用系统；字段和序列化顺序稳定。
 - `runner.py` 接收可注入的执行函数，统一超时、返回码、stdout/stderr 和启动异常。
-- `windows.py` 负责当前进程环境中的 Windows 事实采集；注册表只读 HKLM/HKCU 环境键，路径只作为脱敏后的证据流出。
+- `windows.py` 负责当前进程环境中的 Windows 事实采集；注册表只读 HKLM/HKCU 环境键，路径只作为脱敏后的证据流出；Agent 解析只读 lstat，不在发现阶段启动命令。
 - `checks.py` 将事实转换为 `pass`、`warning`、`fail`、`unknown`，不负责 CLI 参数或输出格式。
-- `cli.py` 负责解析三个子命令；`scan` 的调用路径和 v1 JSON/退出语义保持不变。
+- `agent_doctor.py` 使用独立状态和 v1 报告，不复用 `CheckResult`，也不改变 `scan`、`snapshot` 或 `workspace-probe` schema。
+- `cli.py` 负责解析子命令；既有命令的调用路径和 v1 JSON/退出语义保持不变。
 - `reporting.py` 只渲染已有结果，不再次运行命令。
 
 ## 状态语义
@@ -33,7 +35,7 @@ cli.py
 | `fail` | 已有证据证明本项不能按预期工作 |
 | `unknown` | 证据不足或当前平台不支持该事实 |
 
-可选 Agent（`codex`、`claude`、`dsh`）缺失只能产生 `warning`。任何 `fail` 必须有至少一条证据字符串；模型构造函数会拒绝没有证据的 fail。
+对 `scan` 的 `CheckResult` 而言，可选 Agent（`codex`、`claude`、`dsh`）缺失只能产生 `warning`。`agent-doctor` 使用独立状态，其中未发现命令为 `command_not_found`。任何 `fail` 必须有至少一条证据字符串；模型构造函数会拒绝没有证据的 fail。
 
 ## 命令发现
 
@@ -71,6 +73,14 @@ cli.py
 报告渲染前统一将当前用户目录（大小写不敏感）替换为 `%USERPROFILE%`，同时替换 `USERPROFILE` 变量值和常见临时目录中的用户名段。只输出变量名和脱敏状态，不输出 token、密码、API key 或完整环境变量值。
 
 ## 未来扩展
+
+## 第六里程碑：agent-doctor
+
+`agent-doctor` 是独立的 `AgentDoctorReport v1`，只回答“当前进程 PATH 中已解析的本地 Agent 启动器能否完成一次版本探针”。默认检查 `codex`、`claude`、`dsh`；重复的 `--agent` 先去重，再按这个固定顺序输出。其他输入直接作为输入错误，不静默扩展支持范围。
+
+发现阶段只读取当前 PATH 中的 `.exe`、`.cmd`、`.bat` 和 `.ps1` 启动器，并使用 `lstat` 保留 WindowsApps alias 或权限异常的结构化证据。只有发现普通文件后才通过 `Runner` 执行一次 `--version`；`.ps1` 通过已有 PowerShell launcher 处理。不会调用 `login`、`doctor`、`npx`、网络或网页命令。
+
+每个 Agent 的状态固定为 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed` 或 `usable`。只有 `--version` 退出码为 0 且 stdout/stderr 至少有一条非空文本时才是 `usable`；成功结果保存脱敏后最多 200 字符的第一条非空版本行，空输出归类为 `version_probe_failed`。未发现命令不是失败，全部未安装时 CLI 退出 0；已发现但不可用时退出 1；输入错误退出 2。顶层报告固定含 `kind=agent_doctor` 与 `offline=true`。Runner 错误只输出 `error_type`、`winerror`、返回码和超时标记，不回显 stdout/stderr；路径按 `%USERPROFILE%` 脱敏。
 
 ## 第四里程碑：workspace-probe
 
