@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：真实 host/agent 差异采集准备——snapshot 写入快速失败修复已完成设计、实现、复审、本地边界验证和远程 CI。
+当前阶段：真实 host/agent 差异采集——双端协议已设计，Codex 端快照已生成并验证，等待宿主端手动采集。
 
-下一步：准备可复制的 host/agent 成对采集流程；在宿主终端和 Agent 实际终端分别生成快照后，用 `compare` 验证真实差异。
+下一步：用户在普通 PowerShell 按 `docs/context-comparison.md` 生成同一 cwd 的 `host.json`，然后运行 host ↔ Codex `compare`。
 
-最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff 和真实拒绝写入/`%TEMP%` 写出读取边界已通过；main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、真实拒绝写入/`%TEMP%` 写出读取边界，以及当前 Codex 的 `context-run-01\codex.json` 写出、重载、脱敏和自比较均已通过；main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -96,7 +96,8 @@
 - [x] 10. 将 `support-report` 升级为 v2，增加纯 `next_checks` 推导；不维护双版本或执行自动建议。
 - [x] 11. 将 Typer 公开 help/docstring 调整为 ASCII，关闭 Unicode 帮助格式，并加入 cp1252 子进程 smoke test；不改变报告输出（已推送并通过 CI）。
 - [x] 12. 增加独立 `project-doctor` v1：第一层 marker 推导与必需工具 `--version` 探测；设计、实现、复审与远程验证完成。
-- [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理（本地完成，待推送后远程复验）。
+- [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理，并通过远程 CI。
+- [x] 14. 建立 host/Agent 双端采集协议；不新增伪自动化包装，Codex 端已在 `%TEMP%` 生成并验证首份快照。
 
 ## 技术和环境
 
@@ -139,16 +140,16 @@
 当前阻塞：
 
 - 无远程仓库、认证、Windows CI、snapshot 修复或包验收阻塞；GitHub CLI 已认证。
-- 尚未获得同一台机器在宿主终端与 Agent 实际终端生成的成对快照，因此不能用当前证据断言两者的 PATH、权限或 launcher 差异。
+- Codex 端快照已生成；宿主端必须由用户在普通 PowerShell 手动运行一次，当前尚未形成成对证据，因此不能断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 准备并执行 host/agent 成对快照采集，再根据真实差异决定下一诊断切片。
-- 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 用户按 `docs/context-comparison.md` 在宿主 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
+- 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
 
 未提交修改：
 
-- 仅本次 CI 状态文档；snapshot 修复与测试已在 `4b8d16d` 推送。
+- `docs/context-comparison.md`、README、设计与状态文档；不包含 Codex 快照证据文件。
 
 ## 关键决策
 
@@ -207,6 +208,7 @@
 | 2026-08-24 | project-doctor GitHub Windows CI | [run 32696172691](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) | Python 3.12/3.14 的 145 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | snapshot 修复前一轮 main CI | [run 32696504545](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) | 当时已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和干净环境安装全部通过；不包含后续 snapshot 修复 |
 | 2026-08-24 | snapshot 修复 GitHub Windows CI | [run 32699112641](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) | Python 3.12/3.14 的 158 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | Codex 上下文快照 | `%TEMP%\win-agent-preflight\context-run-01\codex.json` | snapshot 退出 0；`load_snapshot` 返回 label `codex`、cwd 为本仓库、schema v1；用户目录明文未出现；临时残留 0；自比较退出 0 |
 | 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
 | 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件 |

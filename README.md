@@ -49,6 +49,12 @@ agent-preflight support-report --json --pretty --timeout 2
 agent-preflight project-doctor --target . --json --pretty
 ```
 
+## Host/Agent 成对采集
+
+真实环境差异必须由宿主终端和对应 Agent 的实际命令执行器分别运行一次 `snapshot`，再回到宿主执行 `compare`。单个进程不能代替另一个执行上下文采集，也不要用宿主快照冒充 Agent 快照。
+
+完整的 `%TEMP%` 证据目录、PowerShell 命令、退出码、公开检查和清理边界见 [`docs/context-comparison.md`](docs/context-comparison.md)。
+
 构建源码包和 wheel 的本地验收见 [`docs/release-check.md`](docs/release-check.md)：
 
 ```powershell
@@ -62,7 +68,7 @@ py -3.12 -m build --sdist --wheel
 
 这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help、`project-doctor`、snapshot 修复和 sdist/wheel 已在 `32699112641` 中通过。
 
-只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
+全局 `scan` 仍检查固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`；需要按项目 marker 缩小到实际工具链时使用 `project-doctor --target <目录>`。
 
 `snapshot` 的 `--label` 和 `--output` 必填；输出目录会创建，已有文件默认不会覆盖，需显式加 `--force`。写出时只在目标父目录创建本次 UUID 临时文件，使用一次 `O_EXCL` 打开并最多对三次名称碰撞重试；权限或其他写入错误立即返回 `SnapshotError`，不扫描目录、不后台重试。完成后 `--force` 使用替换，默认模式使用硬链接后删除临时文件；失败只清理本次已知临时文件。即使嵌入的 `scan` 有 `fail`，快照仍会写出并以 0 退出；写入或输入错误以 2 退出。
 

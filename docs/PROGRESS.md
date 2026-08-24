@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：snapshot 写入快速失败修复提交 `4b8d16d` 已推送并通过 main CI run `32699112641`；进入 host/agent 成对快照采集准备。
+- 当前阶段：双端采集协议已落地，Codex 端快照已生成并验证；等待用户在普通 PowerShell 生成 host 端快照。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、真实拒绝写入目录/可写 `%TEMP%` 边界，以及 `32699112641` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装均已通过。
+- 最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、真实拒绝写入目录/可写 `%TEMP%` 边界、当前 Codex 快照的重载/脱敏/自比较，以及 `32699112641` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装均已通过。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：采集 host/agent 成对快照并运行 `compare`。GitHub CLI 已认证，无需再次认证。
+- 下一步：用户按 `docs/context-comparison.md` 采集 host 快照，再运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -154,12 +154,21 @@
 - [x] 所有已知失败只清理本次成功创建的临时文件，不扫描目录、不处理历史残留；测试覆盖权限首错、三次碰撞、碰撞后成功、竞争输出、write/fsync/replace/fdopen 失败和 CLI 退出 2。
 - [x] 提交 `4b8d16d` 已推送，main CI run `32699112641` 的 Python 3.12/3.14 测试与包验收全部通过。
 
+## 阶段 12：Host/Agent 双端采集协议
+
+状态：协议和 Codex 端证据已完成；host 端需要用户在普通 PowerShell 手动触发。
+
+- [x] 新增 `docs/context-comparison.md`，固定同机、同 cwd、同轮 `%TEMP%` 证据目录和逐对比较流程。
+- [x] 明确只有进入真实 Agent 上下文必须由用户完成；不新增 `capture-pair`、PowerShell 包装或外部 Agent 控制。
+- [x] 当前 Codex 已生成 `context-run-01\codex.json`：写出和重新加载成功，label/cwd/schema 正确，用户目录明文未出现，临时残留为 0，自比较退出 0。
+- [ ] 用户在宿主 PowerShell 生成 `host.json`，完成 host ↔ Codex 首次真实比较；Claude/DSH 未安装或不可用时明确记录未采集。
+
 ## 暂停检查点
 
-- 当前阶段：snapshot 写入修复已在 `4b8d16d` 推送并通过 Windows CI run `32699112641`；准备 host/agent 成对采集。
+- 当前阶段：snapshot 修复已在 `4b8d16d` 推送并通过 Windows CI run `32699112641`；双端协议和 Codex 快照已完成，等待 host 快照。
 - 最近验证：snapshot/CLI 定向测试、158 项完整回归、Ruff、拒绝写入目录快速失败和 `%TEMP%` 快照写出/读取均通过。
 - 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
-- 下一步：采集第一组 host/agent 快照并执行 `compare`。GitHub CLI 已认证，无需再次认证。
+- 下一步：用户在普通 PowerShell 采集 host 快照并执行首次 `compare`。GitHub CLI 已认证，无需再次认证。
 - 恢复命令：
 
 ```powershell
@@ -211,6 +220,7 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | project-doctor GitHub Windows CI | [run 32696172691](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) | Python 3.12/3.14 的 145 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | snapshot 修复前一轮 main CI | [run 32696504545](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) | 当时已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和干净环境安装全部通过；不包含后续 snapshot 修复 |
 | 2026-08-24 | snapshot 修复 GitHub Windows CI | [run 32699112641](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) | Python 3.12/3.14 的 158 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | Codex 上下文快照 | `%TEMP%\win-agent-preflight\context-run-01\codex.json` | snapshot 退出 0；重载得到 label `codex`、cwd 为本仓库、schema v1；无用户目录明文；临时残留 0；自比较退出 0 |
 | 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
 | 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件 |
