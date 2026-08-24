@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：双端采集协议已落地，Codex 端快照已生成并验证；等待用户在普通 PowerShell 生成 host 端快照。
-- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、真实拒绝写入目录/可写 `%TEMP%` 边界、当前 Codex 快照的重载/脱敏/自比较，以及 `32699112641` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装均已通过。
+- 当前阶段：第十三里程碑 `command-doctor` 已完成本地实现和回归，待提交后由 Windows CI 复验；双端采集协议仍等待用户在普通 PowerShell 生成 host 快照。
+- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
+- 最近验证：Command Doctor 定向回归 82 项、全量回归 200 项、Ruff、diff check 和真实 `npm`/`npm.cmd`/`pnpm` CLI 均已通过；既有 main CI `32699112641` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装也已通过。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：用户按 `docs/context-comparison.md` 采集 host 快照，再运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
+- 下一步：审阅并提交 `command-doctor`，运行远程 Windows CI；然后用户按 `docs/context-comparison.md` 采集 host 快照，再运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -163,12 +163,25 @@
 - [x] 当前 Codex 已生成 `context-run-01\codex.json`：写出和重新加载成功，label/cwd/schema 正确，用户目录明文未出现，临时残留为 0，自比较退出 0。
 - [ ] 用户在宿主 PowerShell 生成 `host.json`，完成 host ↔ Codex 首次真实比较；Claude/DSH 未安装或不可用时明确记录未采集。
 
+## 阶段 13：command-doctor 单命令诊断
+
+状态：本地实现、审阅修复和回归完成；尚未提交或远程 Windows CI 验证。
+
+- [x] 新增独立 `CommandDoctorReport v1` 与 `command-doctor NAME --json/--pretty/--timeout`；固定 `kind=command_doctor`、`offline=true`、五态、路径/版本/attempts/details/checks 字段。
+- [x] 输入只允许 1–128 字符 ASCII 安全 basename，显式扩展仅 `.exe`/`.cmd`/`.bat`/`.ps1`；非法输入和非 Windows 平台在任何 discovery、registry 或 Runner 调用前退出 2。
+- [x] 新增共享 `launcher_probe`，Agent Doctor 映射回原 v1 字段；候选按 PATHEXT 相对顺序探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，每候选最多一次固定 `--version`，首个有非空版本输出且退出 0 的候选停止。
+- [x] 无扩展名追加一次只读 PowerShell 裸命令检查；显式 `.ps1` 或无扩展名发现 `.ps1` 时采集只读执行策略；始终采集只读 `windows.path_refresh`，刷新 warning/unknown 不否定已可用显式 launcher。
+- [x] 失败不保存 launcher stdout/stderr；成功只保存脱敏、最多 200 字符的首条非空版本行；PowerShell 裸命令成功证据同样只保留首行并脱敏截断。
+- [x] 测试覆盖候选顺序/回退、空输出/超时/WinError、显式扩展边界、npm bare warning、pnpm 缺失与 refresh 独立性、非 Windows 零 Runner/facts、CLI JSON/Console/0/1/2 和 cp1252 help。
+- [x] 本机真实命令：`npm`、`npm.cmd`、`pnpm` 均退出 0、状态 `usable`、`windows.path_refresh=pass`；npm 为 11.17.0，pnpm 为 11.22.0，pnpm 记录主安装与 fallback 候选。
+- [ ] 待提交后重新执行 Windows CI，补充 3.12/3.14、cp1252、sdist/wheel 干净环境的远程证据。
+
 ## 暂停检查点
 
-- 当前阶段：snapshot 修复已在 `4b8d16d` 推送并通过 Windows CI run `32699112641`；双端协议和 Codex 快照已完成，等待 host 快照。
-- 最近验证：snapshot/CLI 定向测试、158 项完整回归、Ruff、拒绝写入目录快速失败和 `%TEMP%` 快照写出/读取均通过。
+- 当前阶段：`command-doctor` 本地实现待提交；既有 snapshot 修复已在 `4b8d16d` 推送并通过 Windows CI run `32699112641`；双端协议和 Codex 快照已完成，等待 host 快照。
+- 最近验证：Command Doctor 定向测试 82 项、全量回归 200 项、Ruff、diff check、三条真实 command-doctor 命令和既有拒绝写入目录/`%TEMP%` 快照边界均通过。
 - 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
-- 下一步：用户在普通 PowerShell 采集 host 快照并执行首次 `compare`。GitHub CLI 已认证，无需再次认证。
+- 下一步：先提交 `command-doctor` 并完成远程 Windows CI；随后用户在普通 PowerShell 采集 host 快照并执行首次 `compare`。GitHub CLI 已认证，无需再次认证。
 - 恢复命令：
 
 ```powershell
@@ -178,6 +191,7 @@ python -B -m pytest -q -p no:cacheprovider
 python -m ruff check . --no-cache
 agent-preflight scan --json
 agent-preflight agent-doctor --json --pretty
+agent-preflight command-doctor npm --json --pretty --timeout 1
 agent-preflight support-report --json --pretty
 agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 $env:PYTHONIOENCODING = "cp1252:strict"
@@ -229,6 +243,9 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | snapshot P1/P2 回归 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 158 passed；父路径为普通文件时 force/non-force 均为 `cannot write snapshot`，link 竞争仍保留 `output already exists`，主失败叠加 cleanup 失败及 non-force 提交后删除失败均保留残留并报告；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | snapshot 拒绝写入边界 | 两次 `snapshot` 指向项目 `.artifacts` 的唯一输出路径，`--timeout 1` | 两次均在 3.7–4.4 秒内退出 2；`Permission denied`；输出不存在；已知 `.tmp` 残留为 0 |
 | 2026-08-24 | snapshot 可写目录边界 | 唯一 `%TEMP%` 目录中运行 `snapshot`，随后 `load_snapshot` 读取并显式清理该目录 | 写出退出 0，`load_snapshot` 读取 `temp-check 1 environment_snapshot`；临时文件 0；目录已清理 |
+| 2026-08-24 | command-doctor 定向回归 | `python -B -m pytest tests/test_command_doctor.py tests/test_windows.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 82 passed；覆盖严格输入零 Runner、非 Windows 零 facts/Runner、PATHEXT 顺序和候选回退、五态/WinError/timeout/空输出、PowerShell 裸命令和显式扩展检查、direct + bare 恰好两次同 timeout、JSON/Console/退出码/cp1252 help |
+| 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过；第十三里程碑尚未提交或远程 CI 验证 |
+| 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
 
 ## 下一里程碑验收
 

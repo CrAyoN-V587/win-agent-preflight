@@ -11,6 +11,7 @@ HELP_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("snapshot",),
     ("compare",),
     ("agent-doctor",),
+    ("command-doctor",),
     ("support-report",),
     ("project-doctor",),
     ("workspace-probe",),

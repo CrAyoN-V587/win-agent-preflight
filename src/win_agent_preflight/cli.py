@@ -12,11 +12,17 @@ from .agent_doctor import (
     run_agent_doctor,
 )
 from .checks import scan_environment
+from .command_doctor import (
+    CommandDoctorInputError,
+    run_command_doctor,
+)
 from .compare import render_compare_console, render_compare_json
 from .project_doctor import ProjectDoctorInputError, run_project_doctor
 from .reporting import (
     render_agent_doctor_console,
     render_agent_doctor_json,
+    render_command_doctor_console,
+    render_command_doctor_json,
     render_console,
     render_json,
     render_project_doctor_console,
@@ -135,6 +141,29 @@ def agent_doctor(
         else render_agent_doctor_console(report)
     )
     if report.has_unusable_agent:
+        raise typer.Exit(code=1)
+
+
+@app.command("command-doctor")
+def command_doctor(
+    command: str = typer.Argument(..., help="PATH command basename to check"),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per version probe in seconds"),
+) -> None:
+    """Probe one PATH launcher with --version only."""
+
+    try:
+        report = run_command_doctor(command, timeout=timeout)
+    except CommandDoctorInputError as exc:
+        typer.echo(f"command-doctor error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_command_doctor_json(report, pretty=pretty)
+        if json_output
+        else render_command_doctor_console(report)
+    )
+    if not report.successful:
         raise typer.Exit(code=1)
 
 

@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（snapshot 写入修复提交 `4b8d16d` 已推送；main CI run `32699112641` 全部通过）
+状态：进行中（既有稳定内容已随 `4b8d16d` 推送并通过 main CI `32699112641`；第十三里程碑 `command-doctor` 已本地实现，尚未提交/远程验证）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：真实 host/agent 差异采集——双端协议已设计，Codex 端快照已生成并验证，等待宿主端手动采集。
+当前阶段：第十三里程碑 `command-doctor` 本地实现与回归已完成；双端协议仍等待宿主端手动采集。
 
-下一步：用户在普通 PowerShell 按 `docs/context-comparison.md` 生成同一 cwd 的 `host.json`，然后运行 host ↔ Codex `compare`。
+下一步：先审阅并提交 `command-doctor`，在 Windows CI 复验后，再按 `docs/context-comparison.md` 生成 `host.json` 并运行 host ↔ Codex `compare`。
 
-最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、真实拒绝写入/`%TEMP%` 写出读取边界，以及当前 Codex 的 `context-run-01\codex.json` 写出、重载、脱敏和自比较均已通过；main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：第十三里程碑定向回归 82 项、全量回归 200 项、Ruff、diff check，以及真实 `command-doctor npm`/`npm.cmd`/`pnpm` 均已通过；三者退出 0，npm 为 11.17.0、pnpm 为 11.22.0，PATH refresh 均为 pass。既有 main CI run [`32699112641`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32699112641) 的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和两个干净环境安装也全部通过（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -45,6 +45,7 @@
 - 独立 `agent-doctor`：默认/重复 `--agent` 选择、PATH 中多类 launcher 解析、同一 Agent 多候选回退、每个候选最多一次 `--version` 探针和脱敏状态报告。
 - 独立 `support-report`：固定 v2 组合 envelope、有限环境事实、Agent Doctor 结果复用、scan 预计算注入、纯 `next_checks` 推导和脱敏采集错误。
 - 独立 `project-doctor`：只读取目标第一层十个固定 marker，推导 python/node/npm/pnpm/cmake，按固定顺序执行必需工具的 `--version`，不递归、不读 marker 内容、不使用目标目录 cwd。
+- 独立 `command-doctor`：只接受一个 ASCII 安全 basename，按 PATH/PATHEXT 探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，固定执行 `--version`，按需要采集 PowerShell 裸命令/执行策略和只读 PATH refresh；不递归、不联网、不写文件。
 - snapshot 写出：目标父目录内最多三次 UUID 临时名的 `O_EXCL` 创建，只有名称碰撞重试；完成后按 force/non-force 语义提交，失败只清理本次已知临时文件。
 
 不包含：
@@ -60,6 +61,7 @@
 - `next_checks` 只由既有 scan/Agent Doctor 模型触发，不解析自由文本、不运行命令、不读取环境；仅覆盖明确的 Agent launcher/version、PowerShell npm 和 PATH refresh 场景。
 - CLI 公开帮助使用 ASCII 文字并关闭 Rich Unicode 帮助边框；实际报告输出和中文文档不因此改变。
 - `project-doctor` 只接受显式 `--target`；冲突/孤立 lockfile、yarn/bun lockfile 或 marker 检查异常标记为 `unknown`，未列入固定表的项目文件直接忽略；实现已完成独立审阅和远程 CI 验证。
+- `command-doctor` 不诊断 PATH 之外的命令，不执行 login/doctor/npx/web 或其他参数；明确请求的缺失命令是能力失败（退出 1），非法输入和非 Windows 平台退出 2；本地实现待远程 CI 复验。
 
 ## 成功标准
 
@@ -81,6 +83,7 @@
 - [x] 根命令和全部子命令 help 在严格 `PYTHONIOENCODING=cp1252:strict` 下可解码并退出 0，且不会执行采集或写文件。
 - [x] `project-doctor` 的固定 marker 推导、冲突/孤立、marker 异常累计、输入边界、工具调用/required_by、脱敏、JSON/Console 和退出码已有本地及远程测试。
 - [x] snapshot 写入改为有界 `O_EXCL` 临时文件流程；权限/其他写入错误快速退出 2，失败不留下本次临时文件，覆盖碰撞、写入、fsync、替换和 CLI 错误路径测试。
+- [ ] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已在本地完成；待提交后由 Windows CI 复验。
 
 ## 计划
 
@@ -98,6 +101,7 @@
 - [x] 12. 增加独立 `project-doctor` v1：第一层 marker 推导与必需工具 `--version` 探测；设计、实现、复审与远程验证完成。
 - [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理，并通过远程 CI。
 - [x] 14. 建立 host/Agent 双端采集协议；不新增伪自动化包装，Codex 端已在 `%TEMP%` 生成并验证首份快照。
+- [ ] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；本地完成，待远程复验。
 
 ## 技术和环境
 
@@ -106,7 +110,7 @@
 - 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
 - 本地包验收：`py -3.12 -m build --sdist --wheel`，再按 `docs/release-check.md` 分别安装两个制品。
-- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`、`agent-preflight agent-doctor --json --pretty`、`agent-preflight support-report --json --pretty`、`agent-preflight project-doctor --target . --json --pretty`
+- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`、`agent-preflight agent-doctor --json --pretty`、`agent-preflight command-doctor npm --json --pretty`、`agent-preflight support-report --json --pretty`、`agent-preflight project-doctor --target . --json --pretty`
 - 针对性验证命令：`python -B -m pytest -q -p no:cacheprovider`
 - 完整验证命令：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 
@@ -136,20 +140,21 @@
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
 - 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
 - snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
+- 第十三里程碑 `command-doctor` 已完成本地实现：独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码均已覆盖；尚未提交或远程验证。
 
 当前阻塞：
 
-- 无远程仓库、认证、Windows CI、snapshot 修复或包验收阻塞；GitHub CLI 已认证。
+- 无认证或本地实现阻塞；第十三里程碑尚未提交，因此其 Windows CI 和制品安装验收尚未执行。
 - Codex 端快照已生成；宿主端必须由用户在普通 PowerShell 手动运行一次，当前尚未形成成对证据，因此不能断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 用户按 `docs/context-comparison.md` 在宿主 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
+- 审阅并提交 `command-doctor`，运行远程 Windows CI；随后用户按 `docs/context-comparison.md` 在宿主 PowerShell 生成 `host.json`，再用现有 Codex 快照执行首次 `compare`。
 - 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
 
 未提交修改：
 
-- `docs/context-comparison.md`、README、设计与状态文档；不包含 Codex 快照证据文件。
+- 第十三里程碑的 `command_doctor.py`、`launcher_probe.py`、相关 `windows.py`/`agent_doctor.py`/CLI/renderer/test 修改，以及 README、AGENTS、设计与状态文档；不包含 Codex 快照证据文件。
 
 ## 关键决策
 
@@ -175,6 +180,7 @@
 | CLI help 使用 ASCII 并关闭 Rich Unicode 格式 | 兼容严格 cp1252 的 Windows 旧代码页控制台；不改变实际报告和中文文档 | 2026-08-24 |
 | project-doctor 使用固定第一层 marker 和独立 v1 报告 | 在不读项目内容、不递归、不改变既有 scan/support/snapshot schema 的前提下推导本地工具链 | 2026-08-24 |
 | snapshot 写入使用有界 `O_EXCL` 临时文件 | Codex 工作区拒绝写入时必须快速返回；只对名称碰撞重试，避免 `NamedTemporaryFile` 的不可控等待，不扫描目录或引入哈希 | 2026-08-24 |
+| `command-doctor` 使用独立 v1 和共享 launcher probe | 单命令诊断需要严格输入、固定 `--version` 和有限的 PowerShell 辅助事实，同时不改变既有 scan/agent schema 或引入网络/写入操作 | 2026-08-24 |
 
 ## 验证证据
 
@@ -215,6 +221,9 @@
 | 2026-08-24 | snapshot/CLI 定向回归 | `python -B -m pytest tests/test_snapshot.py tests/test_cli.py -q -p no:cacheprovider` | 28 passed；覆盖权限首错单次失败、三次名称碰撞、碰撞后成功、竞争输出保留、write/fsync/replace/fdopen 失败清理和 CLI 退出 2 |
 | 2026-08-24 | snapshot 静态检查 | `python -m ruff check src/win_agent_preflight/snapshot.py tests/test_snapshot.py tests/test_cli.py --no-cache` | All checks passed |
 | 2026-08-24 | snapshot P1/P2 全量回归 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 158 passed；父路径为普通文件时 force/non-force 均为 `cannot write snapshot`，link 竞争仍保留 `output already exists`，主失败叠加 cleanup 失败及 non-force 提交后删除失败均保留残留并报告；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
+| 2026-08-24 | command-doctor 定向回归 | `python -B -m pytest tests/test_command_doctor.py tests/test_windows.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 82 passed；覆盖严格输入零 Runner、非 Windows 零 facts/Runner、PATHEXT 顺序和候选回退、五态/WinError/timeout/空输出、PowerShell 裸命令和显式扩展检查、direct + bare 恰好两次同 timeout、JSON/Console/退出码/cp1252 help |
+| 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过；本次实现尚未提交或远程 CI 验证 |
+| 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
 
 ## 暂停检查点
 
@@ -236,6 +245,7 @@
 - `support-report` 只表示一次当前进程的本地组合采集；`complete=true` 表示采集流程完成，不表示所有命令或 Agent 健康。
 - `support-report` 的 scan 仍包含既有诊断证据和脱敏候选路径；分享前应使用 Console 提醒复核公开边界，不把它当成安全审计或完整环境导出。
 - `npm.ps1` 的阻止判断来自实际 Runner 结果和 PowerShell 事实，不会修改执行策略。
+- `command-doctor` 只描述单次 Windows PATH/launcher 上下文；无扩展名会追加 `.ps1` 并按需读取执行策略，显式 `.cmd`/`.exe` 不执行裸命令检查；`usable` 不等于登录、网络或 Agent 沙箱可用。
 - 注册表 PATH 只读采集已实现；非 Windows 平台、读取异常、类型错误或未解析变量返回 `unknown`，但另一 scope 已证明缺失时返回 `warning`。
 - 命令发现遇到不可访问的 PATH 候选会跳过并继续扫描；当前不会把该情况细分为“不可访问候选”，只在后续版本增加精确分类。
 - `workspace-probe` 不代表整个 Agent 或系统权限；它只验证一次运行上下文对一个现有普通目录的最小文件操作。目标目录中的未知残留不会自动删除，需用户自行处理。

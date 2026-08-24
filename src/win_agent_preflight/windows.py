@@ -35,6 +35,7 @@ DEFAULT_PATHEXT = (
 )
 SCRIPT_COMMANDS = frozenset({"npm", "pnpm", "npx", "yarn"})
 AGENT_LAUNCHER_EXTENSIONS = (".exe", ".cmd", ".bat", ".ps1")
+COMMAND_LAUNCHER_EXTENSIONS = (".exe", ".cmd", ".bat")
 REGISTRY_SCOPES = ("machine", "user")
 RegistryScope = Literal["machine", "user"]
 _REGISTRY_SUBKEY = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
@@ -138,6 +139,15 @@ class AgentCommandDiscovery:
     inaccessible_paths: tuple[CommandPathError, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class CommandDiscovery:
+    """Structured PATH discovery for a caller-owned launcher extension set."""
+
+    candidates: tuple[CommandCandidate, ...] = ()
+    non_executable_paths: tuple[str, ...] = ()
+    inaccessible_paths: tuple[CommandPathError, ...] = ()
+
+
 def redact_text(value: str, *, user_profile: str | None = None) -> str:
     """Replace the current user's home directory without exposing its name."""
 
@@ -216,6 +226,79 @@ def discover_command(
                 CommandCandidate(name=name, path=redact_text(found, user_profile=user_profile))
             )
     return tuple(candidates)
+
+
+def discover_command_details(
+    name: str,
+    *,
+    env: Mapping[str, str] | None = None,
+    user_profile: str | None = None,
+    extensions: Sequence[str] | None = None,
+) -> CommandDiscovery:
+    """Discover regular PATH launchers and retain inspection failures.
+
+    This is intentionally separate from :func:`discover_command`, whose
+    historical candidate behavior is part of the scan contract.  Callers
+    provide the extension set when a command has a narrower probing policy.
+    No command is executed here.
+    """
+
+    environment = env if env is not None else os.environ
+    path_separator = ";" if os.name == "nt" else os.pathsep
+    normalized_extensions = tuple(
+        extension.casefold() if extension.startswith(".") else f".{extension.casefold()}"
+        for extension in (extensions or COMMAND_LAUNCHER_EXTENSIONS)
+    )
+    explicit_extension = Path(name).suffix
+    names = (
+        [name]
+        if explicit_extension
+        else [f"{name}{extension}" for extension in normalized_extensions]
+    )
+    candidates: list[CommandCandidate] = []
+    non_executable: list[str] = []
+    inaccessible: list[CommandPathError] = []
+    seen: set[str] = set()
+
+    for raw_directory in environment.get("PATH", "").split(path_separator):
+        directory = raw_directory.strip().strip('"')
+        if not directory:
+            continue
+        directory_path = Path(directory)
+        try:
+            os.lstat(directory_path)
+        except OSError as exc:
+            if _is_missing_path_error(exc):
+                continue
+            inaccessible.append(_path_error(directory_path, exc, user_profile=user_profile))
+            continue
+
+        for candidate_name in names:
+            candidate_path = directory_path / candidate_name
+            display_path = redact_text(str(candidate_path), user_profile=user_profile)
+            key = os.path.normcase(str(candidate_path))
+            if key in seen:
+                continue
+            try:
+                info = os.lstat(candidate_path)
+            except OSError as exc:
+                if _is_missing_path_error(exc):
+                    continue
+                inaccessible.append(_path_error(candidate_path, exc, user_profile=user_profile))
+                continue
+            seen.add(key)
+            if not stat.S_ISREG(info.st_mode):
+                non_executable.append(display_path)
+                continue
+            candidates.append(
+                CommandCandidate(name=name, path=display_path, source="PATH")
+            )
+
+    return CommandDiscovery(
+        candidates=tuple(candidates),
+        non_executable_paths=tuple(non_executable),
+        inaccessible_paths=tuple(inaccessible),
+    )
 
 
 def discover_agent_command_details(
@@ -779,6 +862,7 @@ def collect_powershell_command_check(
     resolves the bare command to a policy-blocked ``npm.ps1``.
     """
 
+    command = validate_powershell_basename(command)
     candidates = discover_command("pwsh", env=env, user_profile=user_profile)
     candidates += discover_command("powershell.exe", env=env, user_profile=user_profile)
     check_id = f"powershell.command.{command}"
@@ -806,12 +890,19 @@ def collect_powershell_command_check(
         env=env,
     )
     if execution.succeeded:
-        output = execution.stdout.strip() or execution.stderr.strip() or "started"
+        output = execution.stdout if execution.stdout.strip() else execution.stderr
+        first_line = next(
+            (line.strip() for line in output.splitlines() if line.strip()),
+            "started",
+        )
         return CheckResult(
             id=check_id,
             status=CheckStatus.PASS,
             summary=f"PowerShell 裸命令可启动：{command}",
-            evidence=(f"shell: {selected.path}", redact_text(output, user_profile=user_profile)),
+            evidence=(
+                f"shell: {selected.path}",
+                redact_text(first_line, user_profile=user_profile)[:200],
+            ),
             details={"shell": selected.path, "command": command},
         )
     evidence = _execution_evidence(execution, user_profile=user_profile)
@@ -822,6 +913,19 @@ def collect_powershell_command_check(
         evidence=(f"shell: {selected.path}", *evidence),
         details={"shell": selected.path, "command": command},
     )
+
+
+_COMMAND_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def validate_powershell_basename(command: str) -> str:
+    """Validate and normalize a bare basename before embedding it in PowerShell."""
+
+    if not isinstance(command, str) or not _COMMAND_NAME_PATTERN.fullmatch(command):
+        raise ValueError("PowerShell command must be an ASCII basename")
+    if "." in command or command in {".", ".."}:
+        raise ValueError("PowerShell command must not include an extension")
+    return command.casefold()
 
 
 def run_candidate(

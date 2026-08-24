@@ -133,6 +133,57 @@ def test_powershell_bare_npm_detects_blocked_ps1_independently(tmp_path: Path) -
     assert any("scripts" in item for item in result.evidence)
 
 
+def test_powershell_bare_success_keeps_only_first_bounded_redacted_line(
+    tmp_path: Path,
+) -> None:
+    _touch(tmp_path / "powershell.exe")
+    profile = r"C:\Users\Alice"
+    first = rf"{profile}\bin\npm 11.17.0"
+    secret = "LATER-SECRET-OUTPUT"
+    long_tail = "x" * 400
+
+    def executor(argv, timeout, environment, cwd):
+        del timeout, environment, cwd
+        return CommandExecution(
+            argv=tuple(argv),
+            returncode=0,
+            stdout=f"\n{first}\n{secret}\n{long_tail}\n",
+        )
+
+    result = collect_powershell_command_check(
+        Runner(executor=executor),
+        command="npm",
+        env={"PATH": str(tmp_path), "PATHEXT": ".EXE"},
+        user_profile=profile,
+    )
+
+    assert result.id == "powershell.command.npm"
+    assert result.status is CheckStatus.PASS
+    assert len(result.evidence[1]) <= 200
+    assert "%USERPROFILE%" in result.evidence[1]
+    assert profile.casefold() not in result.evidence[1].casefold()
+    assert secret not in result.evidence[1]
+    assert long_tail not in result.evidence[1]
+
+
+@pytest.mark.parametrize("command", ["npm.", "npm.com", "npm.cmd", "bad/name", "bad name"])
+def test_powershell_bare_check_rejects_unvalidated_basename(
+    command: str, tmp_path: Path
+) -> None:
+    calls = 0
+
+    def executor(argv, timeout, environment, cwd):
+        nonlocal calls
+        calls += 1
+        return CommandExecution(argv=tuple(argv), returncode=0, stdout="ok\n")
+
+    with pytest.raises(ValueError):
+        collect_powershell_command_check(
+            Runner(executor=executor), command=command, env={"PATH": str(tmp_path)}
+        )
+    assert calls == 0
+
+
 def test_empty_environment_does_not_inherit_host_path(tmp_path: Path) -> None:
     _touch(tmp_path / "python.exe")
     assert discover_command("python", env={}) == ()

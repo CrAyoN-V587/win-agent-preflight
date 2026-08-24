@@ -6,12 +6,18 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+import win_agent_preflight.command_doctor as command_doctor_module
 from win_agent_preflight import cli
 from win_agent_preflight.agent_doctor import (
     AgentDoctorReport,
     AgentDoctorResult,
     AgentDoctorState,
 )
+from win_agent_preflight.command_doctor import (
+    CommandDoctorInputError,
+    CommandDoctorReport,
+)
+from win_agent_preflight.launcher_probe import LauncherProbeState
 from win_agent_preflight.models import CheckResult, CheckStatus, ScanReport
 from win_agent_preflight.snapshot import SnapshotError, capture_snapshot, write_snapshot
 
@@ -212,3 +218,74 @@ def test_agent_doctor_cli_rejects_unknown_agent() -> None:
 
     assert result.exit_code == 2
     assert "unsupported agent" in result.stderr
+
+
+def test_command_doctor_cli_json_success_and_canonical_input(monkeypatch) -> None:
+    report = CommandDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        command="npm",
+        state=LauncherProbeState.USABLE,
+        successful=True,
+        path="%USERPROFILE%\\bin\\npm.cmd",
+        version="11.0.0",
+        evidence=("version probe succeeded",),
+    )
+    received: list[tuple[str, float]] = []
+
+    def fake_doctor(name, *, timeout):
+        received.append((name, timeout))
+        return report
+
+    monkeypatch.setattr(cli, "run_command_doctor", fake_doctor)
+    result = CliRunner().invoke(cli.app, ["command-doctor", "NPM", "--json"])
+
+    assert result.exit_code == 0
+    assert received == [("NPM", 5.0)]
+    payload = json.loads(result.stdout)
+    assert payload["kind"] == "command_doctor"
+    assert payload["command"] == "npm"
+    assert payload["successful"] is True
+
+
+def test_command_doctor_cli_capability_failure_is_exit_one_json(monkeypatch) -> None:
+    report = CommandDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        command="pnpm",
+        state=LauncherProbeState.COMMAND_NOT_FOUND,
+        successful=False,
+        evidence=("command was not found in the current PATH",),
+    )
+    monkeypatch.setattr(cli, "run_command_doctor", lambda name, *, timeout: report)
+
+    result = CliRunner().invoke(cli.app, ["command-doctor", "pnpm", "--json", "--pretty"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["state"] == "command_not_found"
+    assert payload["successful"] is False
+
+
+def test_command_doctor_cli_input_error_is_exit_two(monkeypatch) -> None:
+    def reject(name, *, timeout):
+        raise CommandDoctorInputError("invalid command")
+
+    monkeypatch.setattr(cli, "run_command_doctor", reject)
+    result = CliRunner().invoke(cli.app, ["command-doctor", "bad/name"])
+
+    assert result.exit_code == 2
+    assert "command-doctor error" in result.stderr
+    assert "invalid command" in result.stderr
+
+
+def test_command_doctor_cli_non_windows_is_exit_two_without_stdout(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(command_doctor_module.os, "name", "posix")
+
+    result = CliRunner().invoke(cli.app, ["command-doctor", "npm"])
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert "Windows-only" in result.stderr

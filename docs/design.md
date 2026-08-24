@@ -10,6 +10,8 @@
 cli.py
   ├─ checks.py（诊断分类与扫描编排）
   ├─ agent_doctor.py（AgentDoctorReport v1 与最小版本探针）
+  ├─ command_doctor.py（CommandDoctorReport v1 与单命令诊断）
+  ├─ launcher_probe.py（Agent/command doctor 共用候选探针）
   ├─ support_report.py（SupportReport v2、离线组合采集与纯 next_checks 推导）
   ├─ project_doctor.py（ProjectDoctorReport v1、第一层 marker 推导与工具版本探测）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
@@ -25,6 +27,8 @@ cli.py
 - `windows.py` 负责当前进程环境中的 Windows 事实采集；注册表只读 HKLM/HKCU 环境键，路径只作为脱敏后的证据流出；Agent 解析只读 lstat，不在发现阶段启动命令。
 - `checks.py` 将事实转换为 `pass`、`warning`、`fail`、`unknown`，不负责 CLI 参数或输出格式。
 - `agent_doctor.py` 使用独立状态和 v1 报告，不复用 `CheckResult`，也不改变 `scan`、`snapshot` 或 `workspace-probe` schema。
+- `launcher_probe.py` 只接收已发现的有限候选，通过 `Runner` 逐个执行 `--version`，每候选最多一次；它只保留结构化 attempts 和脱敏后的首条版本行，不保存失败 stdout/stderr。
+- `command_doctor.py` 使用独立 `CommandDoctorReport v1`，严格限制一个 ASCII 安全 basename，固定候选和 PowerShell 事实边界，不改变既有 `scan`/`agent-doctor` schema。
 - `support_report.py` 先收集 Agent Doctor，再将其结果映射为既有 `CheckResult` 并注入 `scan_environment`；Agent Doctor 可依次尝试同一 Agent 的多个候选，每个候选最多一次，scan 不再重复探测三个 Agent，不改变 standalone `scan` 的 schema 或行为。
 - `project_doctor.py` 使用独立 v1 报告，但复用 `discover_command`、`Runner` 和 `CheckResult`；它只对显式 target 的固定第一层 marker 做 `lstat`，不读取内容、不递归、不改变 `scan`、`support-report` 或 `snapshot` schema。
 - `cli.py` 负责解析子命令；既有命令的调用路径和 v1 JSON/退出语义保持不变。
@@ -143,3 +147,11 @@ Codex 工作区对项目目录的写入曾以 WinError 5 被拒绝；旧的 `Nam
 host 与 Agent 的差异不能由单个进程自动采集：同一进程连续写两份快照只会得到同一上下文。项目不新增 `capture-pair` 子命令或 PowerShell 包装脚本；用户必须在普通宿主终端与每个真实 Agent 执行器中分别触发既有 `snapshot`，再由宿主逐对运行 `compare`。
 
 协议默认把证据写到同一轮 `%TEMP%\win-agent-preflight\context-run-01`，因为当前 Codex 对项目 `.artifacts` 的写入可能被拒绝。每轮推荐新目录且默认不覆盖；工具不启动 Agent、不登录、不注入 prompt、不修改 PATH、权限或执行策略，也不自动上传、复制、哈希或删除证据。完整命令和人工公开检查见 `docs/context-comparison.md`。
+
+## 第十三里程碑：command-doctor
+
+`command-doctor NAME` 只诊断 Windows PATH 中用户明确指定的一个 launcher。输入长度为 1–128，首字符是 ASCII 字母/数字，其余只能是 ASCII 字母、数字、点、下划线或横线；显式扩展仅允许 `.exe`、`.cmd`、`.bat`、`.ps1`，规范化为小写。非法输入和非 Windows 平台在 discovery、registry 或 Runner 之前退出 2，不产生诊断调用。
+
+无扩展名时，只按当前 `PATHEXT` 中 `.exe`/`.cmd`/`.bat` 的相对顺序生成候选，再追加 `.ps1`；显式扩展只探测该 launcher。候选使用共享的 `launcher_probe`，每个最多一次固定 `--version`，首个退出 0 且有非空 stdout/stderr 文本的候选停止并报告 `usable`。成功版本仅保留首条非空行，脱敏并截断至 200 字符；失败只保留状态、结构化 Runner 错误和 attempts，不保留输出原文。
+
+报告固定采集只读 `windows.path_refresh`；无扩展名始终追加一次 PowerShell 裸命令检查，显式 `.ps1` 或无扩展名发现 `.ps1` 时追加只读执行策略检查。检查顺序为 path refresh、可选 execution policy、可选 bare command；path refresh warning/unknown 不使已可用的显式 launcher 失败。成功退出 0，能力失败（包括明确请求但未发现的命令）退出 1，输入/非 Windows 错误退出 2。该命令不执行 login、doctor、npx、web、网络、安装或写文件。

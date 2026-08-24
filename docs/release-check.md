@@ -66,6 +66,18 @@ python -B -m win_agent_preflight project-doctor --target . --json --pretty --tim
 
 该命令只读取第一层十个固定 marker 并探测推导工具的 `--version`，不写文件、不递归、不打开 marker 内容，也不以目标目录作为工具 cwd。marker 的权限异常、symlink、reparse point 或非普通项会进入首项 `project.markers` 的 `unknown`，而不是把有效 target 判为输入错误；未列入固定表的文件直接忽略。
 
+## command-doctor 本地边界
+
+第十三里程碑的 `command-doctor` 已在本机完成实现和回归，尚未提交，故本节不把它写成远程 CI 已验证。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
+
+```powershell
+python -B -m win_agent_preflight command-doctor npm --json --pretty --timeout 1
+python -B -m win_agent_preflight command-doctor npm.cmd --json --pretty --timeout 1
+python -B -m win_agent_preflight command-doctor pnpm --json --pretty --timeout 1
+```
+
+本机三条命令均退出 0、状态为 `usable`、`windows.path_refresh=pass`；npm/npm.cmd 为 `11.17.0`，pnpm 为 `11.22.0`，pnpm 报告主安装和 fallback 候选。无扩展名会按 PATHEXT 探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，必要时进行一次 PowerShell 裸命令或执行策略只读检查；显式 `.cmd`/`.exe` 不执行裸命令检查。该命令不登录、不联网、不写文件，能力失败退出 1，输入或非 Windows 错误退出 2。
+
 ## snapshot 写入边界
 
 快照写出在目标父目录内创建本次 UUID 临时文件，使用 `O_EXCL` 且最多尝试三个名称；只有 `FileExistsError` 会触发下一名称，权限或其他写入错误应立即以 CLI 退出码 2 返回。写入通过 UTF-8 `fdopen`、write、flush 和 fsync 完成，`--force` 使用 replace，默认模式使用 link 后 unlink；失败只清理本次已知临时文件，不扫描目录或处理历史 `.tmp`。

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from .agent_doctor import AgentDoctorReport
+from .command_doctor import CommandDoctorReport
 from .models import ScanReport
 from .project_doctor import ProjectDoctorReport
 from .support_report import SupportReport
@@ -90,6 +91,40 @@ def render_agent_doctor_console(report: AgentDoctorReport) -> str:
         f"{key}={value}" for key, value in report.to_dict()["summary"].items()
     )
     lines.extend(("", f"Summary: {counts}"))
+    return "\n".join(lines)
+
+
+def render_command_doctor_json(
+    report: CommandDoctorReport, *, pretty: bool = False
+) -> str:
+    """Render the independent command-doctor v1 schema."""
+
+    return json.dumps(
+        report.to_dict(),
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+    )
+
+
+def render_command_doctor_console(report: CommandDoctorReport) -> str:
+    """Render command state and bounded checks without process output."""
+
+    lines = ["Windows Agent Preflight command doctor", "=" * 40]
+    lines.append(f"Command: {report.command}")
+    lines.append(f"State: {report.state.value}")
+    lines.append(f"Successful: {str(report.successful).lower()}")
+    if report.path:
+        lines.append(f"Path: {report.path}")
+    if report.version:
+        lines.append(f"Version: {report.version}")
+    for evidence in report.evidence:
+        lines.append(f"  - {evidence}")
+    lines.append("Checks:")
+    for check in report.checks:
+        lines.append(f"[{check.status.value.upper():7}] {check.id}: {check.summary}")
+        for evidence in check.evidence:
+            lines.append(f"  - {evidence}")
     return "\n".join(lines)
 
 

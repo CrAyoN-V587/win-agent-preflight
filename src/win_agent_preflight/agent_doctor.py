@@ -8,23 +8,17 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from .runner import CommandExecution, Runner
+from .launcher_probe import LauncherProbeState, probe_launchers
+from .runner import Runner
 from .windows import (
     CommandPathError,
     discover_agent_command_details,
-    redact_text,
-    run_candidate,
 )
 
 DEFAULT_AGENTS = ("codex", "claude", "dsh")
 
 
-class AgentDoctorState(StrEnum):
-    COMMAND_NOT_FOUND = "command_not_found"
-    RESOLVED_BUT_NOT_EXECUTABLE = "resolved_but_not_executable"
-    ACCESS_DENIED = "access_denied"
-    VERSION_PROBE_FAILED = "version_probe_failed"
-    USABLE = "usable"
+AgentDoctorState = LauncherProbeState
 
 
 class AgentDoctorInputError(ValueError):
@@ -192,31 +186,27 @@ def _check_agent(
             details=base_details,
         )
 
-    attempts: list[dict[str, Any]] = []
-    for candidate in discovery.candidates:
-        execution = run_candidate(
-            candidate,
-            runner,
-            env=env,
-            user_profile=user_profile,
-            timeout=timeout,
+    probe = probe_launchers(
+        discovery.candidates,
+        runner,
+        env=env,
+        user_profile=user_profile,
+        timeout=timeout,
+    )
+    attempts = list(probe.attempts)
+    if probe.state is AgentDoctorState.USABLE:
+        return AgentDoctorResult(
+            agent=name,
+            command=name,
+            state=AgentDoctorState.USABLE,
+            summary=f"Agent 可用：{name}",
+            evidence=("version probe succeeded",),
+            path=probe.path,
+            version=probe.version,
+            details={**base_details, "attempts": attempts},
         )
-        version = _version_line(execution, user_profile=user_profile)
-        attempt = _execution_details(candidate.path, execution, has_output=version is not None)
-        attempts.append(attempt)
-        if execution.succeeded and version is not None:
-            return AgentDoctorResult(
-                agent=name,
-                command=name,
-                state=AgentDoctorState.USABLE,
-                summary=f"Agent 可用：{name}",
-                evidence=("version probe succeeded",),
-                path=candidate.path,
-                version=version,
-                details={**base_details, "attempts": attempts},
-            )
 
-    state = _failed_probe_state(attempts)
+    state = probe.state
     evidence = {
         AgentDoctorState.ACCESS_DENIED: "version probe access was denied",
         AgentDoctorState.RESOLVED_BUT_NOT_EXECUTABLE: "resolved launcher could not be started",
@@ -228,56 +218,9 @@ def _check_agent(
         state=state,
         summary=f"Agent 启动器不可用：{name}",
         evidence=(evidence,),
-        path=discovery.candidates[0].path,
+        path=probe.path,
         details={**base_details, "attempts": attempts},
     )
-
-
-def _failed_probe_state(attempts: Sequence[Mapping[str, Any]]) -> AgentDoctorState:
-    if any(
-        attempt.get("winerror") in (5, 13, 32, 1920)
-        or str(attempt.get("error_type", "")).casefold()
-        in {"permissionerror", "accessdeniederror"}
-        for attempt in attempts
-    ):
-        return AgentDoctorState.ACCESS_DENIED
-    if any(attempt.get("winerror") in (193, 216) for attempt in attempts):
-        return AgentDoctorState.RESOLVED_BUT_NOT_EXECUTABLE
-    if any(attempt.get("launcher_host_missing") for attempt in attempts):
-        return AgentDoctorState.RESOLVED_BUT_NOT_EXECUTABLE
-    return AgentDoctorState.VERSION_PROBE_FAILED
-
-
-def _execution_details(
-    path: str, execution: CommandExecution, *, has_output: bool
-) -> dict[str, Any]:
-    details: dict[str, Any] = {
-        "path": path,
-        "returncode": execution.returncode,
-        "timed_out": execution.timed_out,
-        "version_output_present": has_output,
-    }
-    error_type = execution.error_type
-    if execution.error and "PowerShell host was not found" in execution.error:
-        details["launcher_host_missing"] = True
-    if error_type is None and execution.error:
-        error_type = "RunnerError"
-    if error_type is not None:
-        details["error_type"] = error_type
-    if execution.winerror is not None:
-        details["winerror"] = execution.winerror
-    return details
-
-
-def _version_line(execution: CommandExecution, *, user_profile: str | None) -> str | None:
-    """Return one bounded, redacted non-empty version line from the probe."""
-
-    for stream in (execution.stdout, execution.stderr):
-        for raw_line in stream.splitlines():
-            line = raw_line.strip()
-            if line:
-                return redact_text(line, user_profile=user_profile)[:200]
-    return None
 
 
 def _path_error_to_dict(error: CommandPathError) -> dict[str, Any]:
