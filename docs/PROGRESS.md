@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：`command-doctor` 已在 `a311f96` 推送并通过 Windows CI run `32703174150`；双端采集协议仍等待用户在普通 PowerShell 生成 host 快照。
+- 当前阶段：`command-doctor` 已在 `a311f96` 推送并通过 Windows CI run `32703174150`；`git-doctor` 已完成本地实现和定向回归，尚未提交/远程验证；双端采集协议仍等待用户在普通 PowerShell 生成 host 快照。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：Command Doctor 定向回归 82 项、全量回归 200 项、Ruff、diff check 和真实 `npm`/`npm.cmd`/`pnpm` CLI 均已通过；main CI `32703174150` 的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装也已通过。
+- 最近验证：Git Doctor 定向回归 37 项、全量回归 237 项、Ruff 和 diff check 已通过；既有 Command Doctor 定向回归 82 项、真实 `npm`/`npm.cmd`/`pnpm` CLI 及 main CI `32703174150` 均保持通过。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：用户按 `docs/context-comparison.md` 采集 host 快照，再运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
+- 下一步：主 Agent 复核并提交 Git Doctor，运行 Windows CI；随后用户按 `docs/context-comparison.md` 采集 host 快照，再运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -175,6 +175,19 @@
 - [x] 测试覆盖候选顺序/回退、空输出/超时/WinError、显式扩展边界、npm bare warning、pnpm 缺失与 refresh 独立性、非 Windows 零 Runner/facts、CLI JSON/Console/0/1/2 和 cp1252 help。
 - [x] 本机真实命令：`npm`、`npm.cmd`、`pnpm` 均退出 0、状态 `usable`、`windows.path_refresh=pass`；npm 为 11.17.0，pnpm 为 11.22.0，pnpm 记录主安装与 fallback 候选。
 - [x] 提交 `a311f96` 已推送，Windows CI run `32703174150` 的 3.12/3.14、cp1252、sdist/wheel 干净环境验收全部通过。
+
+## 阶段 14：git-doctor 离线本地 Git 诊断
+
+状态：本地实现和定向回归完成；未提交，远程 Windows CI 尚未运行。
+
+- [x] 新增独立 `GitDoctorReport v1` 与 `git-doctor --target PATH --json/--pretty/--timeout`；固定 `kind=git_doctor`、`offline=true`、`remote_auth_verified=false`、七项 checks 和本地 readiness 语义。
+- [x] 只通过同一 Runner/env/timeout 执行 Git launcher `--version`、`git -C TARGET` 的 worktree、identity、origin 和 helper 查询；仅安全分类为 GitHub remote 时执行 `gh --version`。
+- [x] 明确不运行 `gh auth`、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh，不联网、不读取 token、配置原值或 helper 原文，不写文件。
+- [x] 覆盖 HTTPS GitHub、SCP-like/SSH GitHub、other/local remote、fetch/push 差异、embedded userinfo、GCM/其他/无 helper、身份缺失/空值/scope、launcher 缺失/失败/超时、非 repo、目标边界、脱敏、JSON/Console/退出码；报告不回显 sentinel。
+- [x] `python -B -m pytest tests/test_git_doctor.py tests/test_cli_help.py -ra -p no:cacheprovider`：38 passed（Git Doctor 37 项，CLI help 1 项）；`python -m ruff check src/win_agent_preflight/git_doctor.py tests/test_git_doctor.py --no-cache`：通过；`git diff --check`：无内容错误。
+- [x] 全量 `python -B -m pytest -ra -p no:cacheprovider`：237 passed；全量 `ruff check . --no-cache` 通过；`git diff --check` 无内容错误（仅 CRLF 转换提示）。
+- [x] 真实仓库根 `python -B -m win_agent_preflight git-doctor --target . --json --pretty --timeout 1`：退出 0；`local_ready=true`，6 pass、`github.auth` 固定 unknown/not_checked_offline；无文件写入、无认证或网络调用。
+- [ ] 主 Agent 复核后提交并触发 Windows CI；远程测试和打包制品中的 `git-doctor` 尚待验收。
 
 ## 暂停检查点
 

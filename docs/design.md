@@ -155,3 +155,11 @@ host 与 Agent 的差异不能由单个进程自动采集：同一进程连续�
 无扩展名时，只按当前 `PATHEXT` 中 `.exe`/`.cmd`/`.bat` 的相对顺序生成候选，再追加 `.ps1`；显式扩展只探测该 launcher。候选使用共享的 `launcher_probe`，每个最多一次固定 `--version`，首个退出 0 且有非空 stdout/stderr 文本的候选停止并报告 `usable`。成功版本仅保留首条非空行，脱敏并截断至 200 字符；失败只保留状态、结构化 Runner 错误和 attempts，不保留输出原文。
 
 报告固定采集只读 `windows.path_refresh`；无扩展名始终追加一次 PowerShell 裸命令检查，显式 `.ps1` 或无扩展名发现 `.ps1` 时追加只读执行策略检查。检查顺序为 path refresh、可选 execution policy、可选 bare command；path refresh warning/unknown 不使已可用的显式 launcher 失败。成功退出 0，能力失败（包括明确请求但未发现的命令）退出 1，输入/非 Windows 错误退出 2。该命令不执行 login、doctor、npx、web、网络、安装或写文件。
+
+## 第十四里程碑：git-doctor
+
+`git-doctor --target PATH` 是独立的 `GitDoctorReport v1`，只回答“当前 Windows 进程是否具备本地 Git 工作准备条件”。target 必须是已存在的普通目录，允许指向仓库子目录；target 本身不得是 symlink/reparse point，且必须通过 `resolve(strict=True)`。所有外部调用共享一个 `Runner`、环境映射和 timeout，Git 子命令统一使用 `git -C TARGET`，不把 target 作为 Runner `cwd`。
+
+固定只读调用顺序为 Git launcher `--version`、`rev-parse --is-inside-work-tree`、`config --show-scope --get user.name`、`user.email`、`remote get-url origin`、`remote get-url --push origin`、`config --get-all credential.helper`；只有 fetch/push 都能安全归约为 GitHub remote 时才探测 `gh --version`。报告 checks 固定为 `git.launcher`、`git.repository`、`git.commit_identity`、`git.remote.origin`、`git.credential_helper`、`github.cli`、`github.auth`。Git launcher/repository/identity/origin 是 `local_ready` 的必要条件；helper、gh 和离线认证观察不单独阻断 `local_ready`。`remote_auth_verified` 恒为 `false`。
+
+identity 只保留 name/email 是否配置及 Git scope；未知或畸形 scope 不计为 configured。remote 只保留 `https`/`ssh`/`local`/`unknown` transport、`github.com|other|local|unknown` host class、fetch/push 是否同目的和 embedded userinfo 布尔值；标准 `ssh://git@host/repo` 的 username 是 SSH 连接信息，不按 HTTP embedded credential 告警，只有 SSH URL 存在 password 时才置 true；Windows 本地路径（包括带空格的 `C:\Repos\My Repo\origin.git`）先按 local 解析。helper 只保留 configured、GCM 是否检测到、helper_count 和 `credentials_verified=false`。原值只在归约函数内即时使用，不进入模型、异常、evidence、Console 或 JSON。失败只保留返回码、超时、error type 和 WinError，不保留 stdout/stderr；GitHub auth 固定为 `unknown`/`not_checked_offline`，不运行 `gh auth`、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh，不联网、不读 token、不写配置。成功退出 0，确认存在本地缺口退出 1，输入/platform/timeout 错误退出 2。该实现当前仅完成本地回归，远程 CI 待提交后验证。

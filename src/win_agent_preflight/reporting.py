@@ -6,6 +6,7 @@ import json
 
 from .agent_doctor import AgentDoctorReport
 from .command_doctor import CommandDoctorReport
+from .git_doctor import GitDoctorReport
 from .models import ScanReport
 from .project_doctor import ProjectDoctorReport
 from .support_report import SupportReport
@@ -125,6 +126,36 @@ def render_command_doctor_console(report: CommandDoctorReport) -> str:
         lines.append(f"[{check.status.value.upper():7}] {check.id}: {check.summary}")
         for evidence in check.evidence:
             lines.append(f"  - {evidence}")
+    return "\n".join(lines)
+
+
+def render_git_doctor_json(report: GitDoctorReport, *, pretty: bool = False) -> str:
+    """Render the independent git-doctor v1 schema."""
+
+    return json.dumps(
+        report.to_dict(),
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+    )
+
+
+def render_git_doctor_console(report: GitDoctorReport) -> str:
+    """Render safe local Git facts without remote or identity values."""
+
+    lines = ["Windows Agent Preflight git doctor", "=" * 36]
+    lines.append(f"Target: {report.target}")
+    lines.append(f"Local ready: {str(report.local_ready).lower()}")
+    lines.append("Remote auth verified: false")
+    for check in report.checks:
+        lines.append(f"[{check.status.value.upper():7}] {check.id}: {check.summary}")
+        for evidence in check.evidence:
+            lines.append(f"  - {evidence}")
+    summary = report.to_dict()["summary"]
+    counts = ", ".join(
+        f"{key}={summary[key]}" for key in ("pass", "warning", "fail", "unknown")
+    )
+    lines.append(f"Summary: {counts}")
     return "\n".join(lines)
 
 

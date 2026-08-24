@@ -17,6 +17,7 @@ from .command_doctor import (
     run_command_doctor,
 )
 from .compare import render_compare_console, render_compare_json
+from .git_doctor import GitDoctorInputError, run_git_doctor
 from .project_doctor import ProjectDoctorInputError, run_project_doctor
 from .reporting import (
     render_agent_doctor_console,
@@ -24,6 +25,8 @@ from .reporting import (
     render_command_doctor_console,
     render_command_doctor_json,
     render_console,
+    render_git_doctor_console,
+    render_git_doctor_json,
     render_json,
     render_project_doctor_console,
     render_project_doctor_json,
@@ -164,6 +167,29 @@ def command_doctor(
         else render_command_doctor_console(report)
     )
     if not report.successful:
+        raise typer.Exit(code=1)
+
+
+@app.command("git-doctor")
+def git_doctor(
+    target: Path = typer.Option(..., "--target", help="Existing Git target directory"),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per external command in seconds"),
+) -> None:
+    """Check local Git readiness without remote authentication or network calls."""
+
+    try:
+        report = run_git_doctor(target, timeout=timeout)
+    except GitDoctorInputError as exc:
+        typer.echo(f"git-doctor error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_git_doctor_json(report, pretty=pretty)
+        if json_output
+        else render_git_doctor_console(report)
+    )
+    if not report.local_ready:
         raise typer.Exit(code=1)
 
 

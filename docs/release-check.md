@@ -5,6 +5,7 @@
 ## 环境
 
 - 本机当前已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
+- `git-doctor` 已完成本地实现和定向回归，但当前未提交；本地验证通过不等于远程 CI、制品安装或 GitHub 认证已验证。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -77,6 +78,20 @@ python -B -m win_agent_preflight command-doctor pnpm --json --pretty --timeout 1
 ```
 
 本机三条命令均退出 0、状态为 `usable`、`windows.path_refresh=pass`；npm/npm.cmd 为 `11.17.0`，pnpm 为 `11.22.0`，pnpm 报告主安装和 fallback 候选。无扩展名会按 PATHEXT 探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，必要时进行一次 PowerShell 裸命令或执行策略只读检查；显式 `.cmd`/`.exe` 不执行裸命令检查。该命令不登录、不联网、不写文件，能力失败退出 1，输入或非 Windows 错误退出 2。
+
+## git-doctor 本地边界
+
+`git-doctor` 需要显式 target，只读取普通目录和 Git 的固定本地事实：Git launcher `--version`、`git -C TARGET` 的 worktree/identity/origin/helper 查询，以及 GitHub remote 下的 `gh --version`。它不运行 `gh auth`、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh，不联网、不读取 token 或 Windows Credential Manager、不写文件；`remote_auth_verified` 永远为 `false`。
+
+定向回归命令：
+
+```powershell
+python -B -m pytest tests/test_git_doctor.py tests/test_cli_help.py -q -p no:cacheprovider
+python -m ruff check src/win_agent_preflight/git_doctor.py tests/test_git_doctor.py --no-cache
+git diff --check
+```
+
+当前结果为 38 passed（Git Doctor 37 项，CLI help 1 项）、全量 237 passed、Ruff 通过、diff check 无内容错误；真实仓库根只读验收退出 0，`local_ready=true`，认证仍固定为 `not_checked_offline`。打包制品中的该命令和 Windows CI 仍待主 Agent 提交后复验；不要把本地报告中的 `github.auth=not_checked_offline` 解释为登录失败或登录成功。
 
 ## snapshot 写入边界
 

@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`command-doctor` 提交 `a311f96` 已推送，main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已全部通过。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`command-doctor` 提交 `a311f96` 已推送，main CI run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已全部通过。`git-doctor` 已在本地实现并完成定向回归，当前未提交，远程 CI 尚待主 Agent 复核后触发。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -22,6 +22,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 - 先复用 Agent Doctor 结果，再生成不让 scan 重复探测三个 Agent 的离线支持报告；
 - 从已有 scan/Agent Doctor 事实纯推导有限的 `next_checks`，不在建议阶段运行命令或读取环境；
 - 根据项目根目录第一层的固定 marker 推导 Python、Node/npm/pnpm 或 CMake 工具需求，并只对实际需要的工具执行有界 `--version` 探测；
+- 对显式 Git target 做离线本地就绪诊断：检查 Git launcher、work tree、commit identity、origin 归约、credential helper 和必要的 GitHub CLI launcher，不验证远程认证；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
 真实 Agent 宿主终端快照仍需在各上下文中分别采集，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
@@ -48,6 +49,7 @@ agent-preflight workspace-probe --target . --allow-write --json --pretty
 agent-preflight agent-doctor --json --pretty
 agent-preflight agent-doctor --agent codex --agent claude
 agent-preflight command-doctor npm --json --pretty
+agent-preflight git-doctor --target . --json --pretty
 agent-preflight support-report --json --pretty --timeout 2
 agent-preflight project-doctor --target . --json --pretty
 ```
@@ -82,6 +84,8 @@ py -3.12 -m build --sdist --wheel
 `agent-doctor` 默认按 `codex`、`claude`、`dsh` 固定顺序检查，可重复 `--agent` 选择子集并自动去重。它只读取 PATH 中的 `.exe`、`.cmd`、`.bat`、`.ps1` 普通启动器；同一 Agent 若有多个候选，会按 PATH 顺序依次探测，每个候选最多经 Runner 执行一次 `--version`，不会调用 `login`、`doctor`、`npx`、网络或网页命令。只有退出码为 0 且 stdout/stderr 至少有一条非空文本时才是 `usable`；成功结果保存经脱敏、最多 200 字符的第一条非空版本行，空输出归类为 `version_probe_failed`。状态为 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed` 或 `usable`；全部未安装退出 0，已解析但存在不可用状态退出 1，输入错误退出 2。输出为独立的 `AgentDoctorReport v1`，固定包含 `kind=agent_doctor` 和 `offline=true`；失败只包含结构化错误类型/Win32 错误码/返回码，不回显 stdout/stderr。
 
 `command-doctor` 只接受一个 1–128 字符的 ASCII 安全 basename；首字符必须是字母或数字，其余只能是字母、数字、点、下划线或横线，显式扩展仅允许 `.exe`、`.cmd`、`.bat`、`.ps1`。它只诊断 PATH 中的外部 launcher，固定调用 `--version`，不接收路径、额外参数、批处理、登录、网络或写入操作。无扩展名时按当前 PATHEXT 相对顺序探测 `.exe`/`.cmd`/`.bat`，末尾追加 `.ps1`，并执行一次 PowerShell 裸命令检查；显式 `.ps1` 或无扩展名时发现 `.ps1` 才读取执行策略；所有调用都有 timeout，并始终执行只读 `windows.path_refresh`。报告为独立 `CommandDoctorReport v1`，包含固定五态、`kind=command_doctor` 和 `offline=true`；成功版本只保存脱敏且最多 200 字符的第一条非空行，候选失败不保存 stdout/stderr。成功退出 0，能力失败（包括明确请求但未发现的命令）退出 1，输入或非 Windows 平台退出 2。
+
+`git-doctor` 必须显式提供现有普通目录 `--target`，可以是仓库子目录。它只通过统一 Runner 执行 Git launcher 的 `--version`、`git -C TARGET rev-parse/config/remote` 的固定只读查询，以及在安全分类为 GitHub remote 时的 `gh --version`。检查顺序固定为 `git.launcher`、`git.repository`、`git.commit_identity`、`git.remote.origin`、`git.credential_helper`、`github.cli`、`github.auth`。name/email、remote URL 和 helper 原值只在函数内立即归约，不进入报告；输出只保留 scope/configured、transport、`github.com|other|local|unknown`、fetch/push 是否同目的、userinfo 是否存在、GCM 是否检测到等有限事实。`local_ready` 只要求 Git、repository、identity 和 origin 可读且无 embedded userinfo；helper、gh 和 `github.auth=not_checked_offline` 不单独阻断它，`remote_auth_verified` 永远为 `false`。该命令绝不运行 `gh auth`、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh，不联网、不读 token、不写文件；成功退出 0，确认存在本地缺口退出 1，输入/platform/timeout 错误退出 2。
 
 上面的 `warning`/`fail` 语义仅适用于 `scan` 的 `CheckResult`：可选 Agent 未安装会显示为 `warning`，不是 `fail`。`agent-doctor` 使用独立报告，未发现命令明确记录为 `command_not_found`，按约定退出 0；`command-doctor` 面向用户明确请求，未发现命令属于能力失败并退出 1。`scan` 的 `fail` 结果必须携带证据，无法判断时使用 `unknown`。
 

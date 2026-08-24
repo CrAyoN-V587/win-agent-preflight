@@ -6,13 +6,13 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：上述既有切片和 `command-doctor` 均已有本地及远程 Windows CI/包验收证据。
+- 当前阶段：上述既有切片和 `command-doctor` 均已有本地及远程 Windows CI/包验收证据；`git-doctor` 已在本地实现和回归，尚待主 Agent 复核后提交并触发远程 CI。
 
 ## 环境和命令
 
 - 安装/准备：`python -m pip install -e ".[dev]"`
 - 构建验收：`python -m build --sdist --wheel`（完整步骤见 `docs/release-check.md`）
-- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight command-doctor npm --json --pretty`、`agent-preflight support-report --json`、`agent-preflight project-doctor --target . --json --pretty`
+- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight command-doctor npm --json --pretty`、`agent-preflight git-doctor --target . --json --pretty`、`agent-preflight support-report --json`、`agent-preflight project-doctor --target . --json --pretty`
 - 针对性测试：`python -B -m pytest -q -p no:cacheprovider`
 - 完整测试：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 - 构建或检查：`python -m ruff check . --no-cache`；打包验收不得替代测试。
@@ -51,6 +51,9 @@
 - `command-doctor` 是独立 CommandDoctorReport v1：只接受 1–128 字符的 ASCII 安全 basename，显式扩展仅允许 `.exe`、`.cmd`、`.bat`、`.ps1`；只诊断 PATH 外部 launcher，固定使用 `--version`，不接收路径、参数、批处理或网络操作。
 - `command-doctor` 无扩展名时按 PATHEXT 相对顺序探测 `.exe`/`.cmd`/`.bat`，末尾追加 `.ps1`，并执行一次只读 PowerShell 裸命令检查；显式 `.ps1` 或无扩展名时发现 `.ps1` 才采集执行策略；所有调用都经有界 Runner，始终采集只读 PATH refresh。成功为 0，能力失败（含明确请求的 `command_not_found`）为 1，输入或非 Windows 平台为 2。
 - `command-doctor` 的 `path_refresh` warning/unknown 不使已可用的显式 launcher 失败；候选失败只保留结构化状态、错误类型/WinError/返回码和尝试路径，不保存 stdout/stderr；成功只保留脱敏、最多 200 字符的第一条非空版本行。
+- `git-doctor` 使用独立 GitDoctorReport v1；必须显式提供普通目录 `--target`，只运行 PATH 中 Git launcher 的 `--version`、同一 target 上的固定只读 `git -C` 查询，以及仅对 GitHub remote 的 `gh --version`。不运行 `gh auth`、credential fill、push/fetch/pull/ls-remote/ssh、网络或任何写入。
+- `git-doctor` 只报告 `local_ready`，固定 `remote_auth_verified=false`；name/email、remote URL、credential helper 原值在函数内立即归约为配置状态、scope、transport、host_class、目标一致性和 userinfo 布尔值，不进入 evidence、异常、Console 或 JSON。GitHub 认证固定为离线 `unknown/not_checked_offline`，不影响 `local_ready`。
+- `git-doctor` 检查顺序固定为 `git.launcher`、`git.repository`、`git.commit_identity`、`git.remote.origin`、`git.credential_helper`、`github.cli`、`github.auth`；Git/repository/identity/origin 是 `local_ready` 的必要条件，helper、gh 和离线 auth 不单独阻断本地就绪。成功退出 0，本地能力缺口退出 1，target/platform/timeout 输入错误退出 2。
 - `support-report` 复用同一个 Runner、env 和 timeout，先执行 `agent-doctor`，再将三类 Agent 结果作为预计算 `CheckResult` 注入 `scan_environment`；Agent Doctor 的多候选回退由其自身完成，scan 不再重复探测这三个 Agent。
 - `support-report` 是离线只读组合报告：不运行 workspace-probe/login/doctor/npx/web/网络，不写文件；只保留有限环境事实，采集异常脱敏截断并保留另一部分结果。完整退出 0，部分采集失败退出 1，输入错误退出 2。
 - `project-doctor` 只接受显式 `--target`，仅检查十个固定第一层 basename：Python、Node/npm/pnpm、yarn/bun lockfile 和 CMake marker；不 glob、递归或读取内容。未列入固定表的项目文件（例如 Makefile、Cargo.toml、go.mod）忽略，不否定其他可靠 marker。
