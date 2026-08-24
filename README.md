@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。cp1252 help 修复提交 `affa4a3` 已推送，最新 main CI run [`32693695834`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693695834) 已全部通过：Python 3.12/3.14 测试、严格 cp1252 帮助、Windows 工作区探针、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传均完成。当前 `project-doctor` 已在本地实现并待审阅，尚未由该远程 CI 验证。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`support-report` 和本地 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`project-doctor` 提交 `4b12475` 已推送，最新 main CI run [`32696172691`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) 已全部通过：Python 3.12/3.14 的 145 项测试、严格 cp1252 帮助、Windows 工作区探针、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传均完成。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -58,9 +58,9 @@ py -3.12 -m build --sdist --wheel
 
 ## CI 与包验收
 
-`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；修复后的最新 main run `32693695834` 已完成整条流水线和制品上传。该 CI 尚未包含当前本地 `project-doctor` 实现。
+`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；最新 main run `32696172691` 已包含 `project-doctor` 并完成整条流水线和制品上传。
 
-这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help 和 sdist/wheel 已在 `32693695834` 中通过；`project-doctor` 需在审阅后由后续 CI 验证。
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help、`project-doctor` 和 sdist/wheel 已在 `32696172691` 中通过。
 
 只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
 
@@ -76,7 +76,7 @@ py -3.12 -m build --sdist --wheel
 
 `support-report` 默认输出 Console，`--json` 输出独立 `SupportReport v2`，不提供 `--output`。它在同一个 Runner、环境映射和超时下先执行 Agent Doctor；Agent Doctor 可依次探测同一 Agent 的多个候选，随后把三个 Agent 的最终结果注入 `scan`，因此 scan 不会再次执行这三个 Agent 的版本命令。顶层保留 v1 的 `scan`/`agent_doctor` 等字段，并增加固定 `next_checks` 数组；内嵌两个报告仍为 v1。`next_checks` 是纯模型推导，只允许 Agent `access_denied`/`version_probe_failed`、PowerShell 裸 `npm` warning、PATH refresh warning/unknown 四类触发；不为命令缺失、不可执行、可用或 Agent scan 注入检查生成建议。报告只保留 `platform`、Python 版本和架构等有限环境事实，标记 `offline=true`、`workspace_probe_run=false`，不运行 workspace-probe、login、doctor、npx、web、网络或写文件。采集完整退出 0，部分采集失败退出 1，输入错误退出 2。Console 会显示 next checks 或 `Next checks: none.`，分享前请检查报告边界提醒。
 
-`project-doctor` 必须显式提供 `--target`，只对目标目录第一层的十个固定 basename 做 `lstat`，不 glob、不递归、不打开 marker 内容，也不以目标目录作为外部工具 cwd。`pyproject.toml`/`requirements.txt` 推导 `python`；`package.json` 推导 `node`，再按 `package-lock.json`/`npm-shrinkwrap.json` 或 `pnpm-lock.yaml` 推导 npm/pnpm；npm 与 pnpm lock 冲突时只推导 node 并将 marker 标为 `unknown`；yarn/bun 或孤立 lockfile 也保持 `unknown`，未列入固定表的项目文件（例如 Makefile、Cargo.toml）直接忽略；`CMakeLists.txt` 推导 `cmake`。marker 的权限异常、symlink、reparse point 或非普通项会累计为脱敏 `unknown`，但会继续处理其他可靠 marker。报告 checks 固定以 `project.markers` 开头，再按 python、node、npm、pnpm、cmake 排列；工具 details 保存固定有序 `required_by`。工具仅执行 `--version`。成功为 0，目标有效但 marker unknown 或必需工具失败为 1，输入/平台错误为 2。当前实现已完成本地独立审阅，尚未纳入远程 CI。
+`project-doctor` 必须显式提供 `--target`，只对目标目录第一层的十个固定 basename 做 `lstat`，不 glob、不递归、不打开 marker 内容，也不以目标目录作为外部工具 cwd。`pyproject.toml`/`requirements.txt` 推导 `python`；`package.json` 推导 `node`，再按 `package-lock.json`/`npm-shrinkwrap.json` 或 `pnpm-lock.yaml` 推导 npm/pnpm；npm 与 pnpm lock 冲突时只推导 node 并将 marker 标为 `unknown`；yarn/bun 或孤立 lockfile 也保持 `unknown`，未列入固定表的项目文件（例如 Makefile、Cargo.toml）直接忽略；`CMakeLists.txt` 推导 `cmake`。marker 的权限异常、symlink、reparse point 或非普通项会累计为脱敏 `unknown`，但会继续处理其他可靠 marker。报告 checks 固定以 `project.markers` 开头，再按 python、node、npm、pnpm、cmake 排列；工具 details 保存固定有序 `required_by`。工具仅执行 `--version`。成功为 0，目标有效但 marker unknown 或必需工具失败为 1，输入/平台错误为 2。
 
 `windows.path_refresh` 只在 Windows 上读取 `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` 和 `HKCU\Environment` 的 `Path`。读取是只读的，不修改注册表、PATH 或执行策略。缺失键/值视为空的完整事实；读取异常、类型错误或未解析变量会报告为 `unknown`，但如果另一 scope 已证明存在未继承目录，结果仍为 `warning`。旧的 `user_path` 参数仍可用于测试注入。
 

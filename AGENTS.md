@@ -6,7 +6,7 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor`、`support-report` v2 和 Windows CI/包验收已稳定；`project-doctor` 已完成本地实现与独立审阅，尚未纳入远程 CI。
+- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor`、`support-report` v2、`project-doctor` 和 Windows CI/包验收均已有稳定远程验证。
 
 ## 环境和命令
 

@@ -118,7 +118,7 @@ cli.py
 | `yarn.lock`、`bun.lock`、`bun.lockb` | 无新增工具 | 孤立或与 package.json 并存时 marker 状态 unknown；若同时有 package.json 仍可探测 node |
 | `CMakeLists.txt` | `cmake` | 可与其他明确 marker 组合 |
 
-未列入该十项固定表的项目文件（例如 `Makefile`、`Cargo.toml`、`go.mod`）直接忽略，不否定其他可靠 marker。报告 checks 固定以 `project.markers` 开头：marker clear 为 pass，marker unknown 为 unknown；随后按 `python`、`node`、`npm`、`pnpm`、`cmake` 顺序排列工具 checks。每个工具 check 的 details 带固定有序 `required_by` marker 名称。工具只调用既有命令发现与 Runner 的 `--version`；必需工具缺失、超时、启动异常或非零退出都生成带证据的 `CheckResult` fail，候选路径和异常按 `%USERPROFILE%` 规则脱敏。报告 `successful` 只有在至少推导出一个工具且所有 checks pass 时为真。CLI 退出 0 表示明确且工具可用，1 表示有效 target 但 marker unknown 或工具失败，2 表示平台/target/timeout 输入错误。当前实现已完成本地独立审阅，待后续 CI 验证。
+未列入该十项固定表的项目文件（例如 `Makefile`、`Cargo.toml`、`go.mod`）直接忽略，不否定其他可靠 marker。报告 checks 固定以 `project.markers` 开头：marker clear 为 pass，marker unknown 为 unknown；随后按 `python`、`node`、`npm`、`pnpm`、`cmake` 顺序排列工具 checks。每个工具 check 的 details 带固定有序 `required_by` marker 名称。工具只调用既有命令发现与 Runner 的 `--version`；必需工具缺失、超时、启动异常或非零退出都生成带证据的 `CheckResult` fail，候选路径和异常按 `%USERPROFILE%` 规则脱敏。报告 `successful` 只有在至少推导出一个工具且所有 checks pass 时为真。CLI 退出 0 表示明确且工具可用，1 表示有效 target 但 marker unknown 或工具失败，2 表示平台/target/timeout 输入错误。实现已完成本地独立审阅和 Windows CI run `32696172691` 验证。
 
 ## 第四里程碑：workspace-probe
 

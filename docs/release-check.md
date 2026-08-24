@@ -58,7 +58,7 @@ Remove-Item Env:PYTHONIOENCODING
 
 ## project-doctor 本地边界
 
-`project-doctor` 当前只在本地工作区实现和验证，尚未包含在 `32693695834`；其远程 CI 验收需在审阅后提交/推送，再按新的 run 结果更新本文。真实仓库根的本地验证命令为：
+`project-doctor` 已包含在 Windows CI run `32696172691`，Python 3.12/3.14 测试与后续包验收均通过。真实仓库根的本地验证命令为：
 
 ```powershell
 python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1
