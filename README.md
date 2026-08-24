@@ -6,15 +6,17 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-当前版本是首个可运行切片，提供 `scan` 命令：
+当前版本已完成第二个可运行里程碑，提供 `scan`、`snapshot` 和 `compare` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
 - 采集 PowerShell 执行策略事实；
 - 输出人类可读 Console 或稳定 JSON；
+- 将有限的宿主事实和同次 `scan` 保存为 v1 快照；
+- 比较两个快照的命令、Shell、PATH/PATHEXT 和检查证据差异；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
-快照、宿主/Agent 对比和真实沙箱探针属于后续阶段，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
+真实 Agent 宿主终端快照和沙箱能力探针仍需后续手动采集/实现，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
 
 ## 环境
 
@@ -30,9 +32,15 @@ python -m pip install -e ".[dev]"
 python -m win_agent_preflight scan
 python -m win_agent_preflight scan --json
 agent-preflight scan --json --pretty
+agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
+agent-preflight compare .\snapshots\host.json .\snapshots\host.json --json
 ```
 
 只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
+
+`snapshot` 的 `--label` 和 `--output` 必填；输出目录会创建，已有文件默认不会覆盖，需显式加 `--force`。即使嵌入的 `scan` 有 `fail`，快照仍会写出并以 0 退出；写入或输入错误以 2 退出。
+
+`compare` 的退出码为：等价 0、有实质差异 1、输入/版本/类型错误 2。比较会忽略 label、采集时间、summary 和 candidate_count，并对 Windows 路径、PATH/PATHEXT、候选集合和 evidence 做规范化。
 
 可选 Agent 未安装会显示为 `warning`，不是 `fail`。`fail` 结果必须携带证据；无法判断时使用 `unknown`。
 
@@ -56,7 +64,8 @@ python -m win_agent_preflight scan --json
 ## 已知限制
 
 - 当前尚未读取 Windows 注册表中的用户 PATH，因此真实 PATH 刷新判断仍为 `unknown`；
-- 只采集宿主环境，宿主/Agent 快照比较和工作区能力探针属于下一里程碑；
+- 当前快照命令采集的是执行它的宿主终端；要比较真实 host/agent，用户需要分别在宿主终端和 Agent 实际终端中运行 `snapshot`，再交给 `compare`；
+- 尚未执行真实 Agent 沙箱能力探针，快照差异本身不等于权限结论；
 - 不可访问的 WindowsApps 执行别名会被安全跳过，但尚未单独分类为“发现但不可检查”。
 
 ## 许可证

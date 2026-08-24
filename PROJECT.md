@@ -1,20 +1,20 @@
 # Windows Agent Preflight
 
-状态：进行中（首个里程碑完成）  
+状态：进行中（第二里程碑实现完成，待主 Agent 验收）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
-时间箱：首个可运行切片 1 周；后续总计 3–5 周
+时间箱：首个可运行切片 1 周；快照/比较里程碑 1 周；后续总计 3–5 周
 
 ## 30 秒上下文
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：首个可运行切片——命令发现、PowerShell 事实采集、Console/JSON 扫描。
+当前阶段：第二里程碑——在稳定 `scan` 上增加 EnvironmentSnapshot v1 与 `compare`。
 
-下一步唯一动作：补充宿主/Agent 快照比较与第一个真实项目能力探针。
+下一步唯一动作：由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照，再验证差异解释。
 
-最近验证：`python -m pytest`、`python -m ruff check . --no-cache` 和 `python -m win_agent_preflight scan --json`（详见 `docs/PROGRESS.md`）。
+最近验证：`python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、同一当前 Agent 环境快照自比较（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -32,15 +32,17 @@
 
 包含：
 
-- Python 3.12.7 下的 `scan` CLI；
+- Python `>=3.12` 下的 `scan`、`snapshot`、`compare` CLI；
 - `python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh` 命令发现与真实启动；
 - PowerShell 执行策略事实采集；
 - Console 和稳定 JSON 报告；
 - 可注入 Runner、超时、路径脱敏和模型序列化测试。
+- EnvironmentSnapshot v1、嵌入 scan、输出目录创建和不覆盖保护；
+- Windows 路径、PATH/PATHEXT、候选集合和 evidence 的规范化比较。
 
 不包含：
 
-- snapshot/compare/probe 子命令；
+- 自动进入 Agent 沙箱或自动生成真实 host/agent 双端快照；
 - 联网、自动修复、注册表或执行策略修改；
 - 密钥采集、哈希、发布级安全审计；
 - GUI、数据库和 LLM 调用。
@@ -58,8 +60,9 @@
 
 - [x] 1. 建立数据模型、Runner、命令发现和 PowerShell 事实采集边界。
 - [x] 2. 实现 `scan` 的 Console/JSON 输出并覆盖首批故障案例。
-- [ ] 3. 加入宿主/Agent 快照比较和最小项目能力探针。
-- [ ] 4. 增加 Agent 原生 Doctor 适配器、Windows CI 和发布文档。
+- [x] 3. 加入 EnvironmentSnapshot v1、`snapshot` 写出和 `compare` 差异退出语义。
+- [ ] 4. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
+- [ ] 5. 增加 Agent 原生 Doctor 适配器、Windows CI 和发布文档。
 
 ## 技术和环境
 
@@ -67,14 +70,14 @@
 - 语言与版本：Python `>=3.12`；当前实际验证 Python 3.12.7，Python 3.14 尚未验证。
 - 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
-- 运行命令：`python -m win_agent_preflight scan` 或 `agent-preflight scan`
+- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`
 - 针对性验证命令：`python -m pytest`
-- 完整验证命令：`python -m pytest && python -m ruff check .`
+- 完整验证命令：先运行 `python -m pytest`，通过后再运行 `python -m ruff check .`。
 
 本机建议安装环境（基于首版验证）：
 
 - 必须：Python 3.12.7（首版已验证）、本项目开发依赖；Git（项目版本管理需要）。
-- 明显提效：Python 3.14（后续兼容性复验）、GitHub CLI（创建 Issue/仓库和认证检查）、PowerShell 7（验证 `pwsh` 场景）。
+- 明显提效：保留 3.12.7 主环境并可并行安装 Python 3.14（只做后续兼容性复验）、GitHub CLI（创建 Issue/仓库和认证检查）、PowerShell 7（验证 `pwsh` 场景）。
 - 暂不需要：WSL、Docker、数据库、GUI 工具和额外 Agent CLI；它们属于后续对照探针或适配器阶段。
 
 ## 当前状态
@@ -86,6 +89,8 @@
 - 可注入超时 Runner；
 - Windows PATH 候选发现、真实启动、PowerShell 事实采集和裸 `npm` PowerShell 解析检查；
 - `scan` Console/JSON；
+- EnvironmentSnapshot v1、`snapshot` 写出和 `compare` Console/JSON；
+- 快照输入窄解析、版本/类型错误处理和规范化差异退出码；
 - 首批模型、脱敏、缺失、候选和超时测试。
 
 当前阻塞：
@@ -94,18 +99,19 @@
 
 下一步：
 
-- 实现宿主/Agent 快照导出与比较，保留本项目当前 JSON 模型作为输入输出边界。
+- 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- 本首个切片尚未由本 Agent 创建提交；由主 Agent 检查差异后按里程碑提交和推送。
+- 第二里程碑修改尚未由本 Agent 创建提交；由主 Agent 检查差异后按里程碑提交和推送。
 
 ## 关键决策
 
 | 决策 | 原因 | 日期 |
 | --- | --- | --- |
 | 使用 Python 3.12.7 | 本机没有 3.14，且 Windows CLI 原型不需要追新版本 | 2026-08-24 |
-| 首阶段只保留 `scan` | 先形成可运行、可测试的诊断核心，避免提前建设快照系统 | 2026-08-24 |
+| Snapshot 内嵌已有 scan v1 | 保持 scan JSON 语义唯一，快照只增加有限宿主事实 | 2026-08-24 |
+| Compare 忽略 label/time/summary/candidate_count | 这些字段会在同一环境重复运行时自然变化，不应制造实质差异 | 2026-08-24 |
 | 外部命令统一经可注入 Runner | 让超时、启动失败和环境差异可以稳定复现 | 2026-08-24 |
 | 可选 Agent 缺失为 warning | “未安装”不是 Agent 故障，避免误报 | 2026-08-24 |
 
@@ -121,11 +127,11 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：首个切片正在形成首次提交；提交后以 `main` 的当前 HEAD 为稳定恢复点。
+- 最近稳定提交：首个切片提交 `c1eb9c9`；第二里程碑当前工作区修改待主 Agent 验收提交。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
-- 恢复时第一步：进入项目根目录，运行 `python -m pytest`，再查看 `docs/PROGRESS.md` 的最近验证。
-- 恢复/验证命令：`python -m pytest`；`python -m ruff check . --no-cache`；`agent-preflight scan --json`。
+- 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
+- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`agent-preflight scan --json`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
 
 ## 已知限制和后续
 
