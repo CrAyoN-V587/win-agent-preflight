@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第五里程碑已通过审阅，待提交并推送）
+状态：进行中（第五里程碑已提交，待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -12,7 +12,7 @@
 
 当前阶段：第五里程碑——增加 Windows CI、sdist/wheel 构建和干净虚拟环境安装验收。
 
-下一步：提交第五里程碑；推送后等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：创建/更新远程并推送；等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：完整 75 项测试与 Ruff 通过；`build 1.5.0` 已生成 1 个 sdist 和 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI。第五里程碑尚未在 GitHub runner 执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
@@ -114,17 +114,16 @@
 
 - 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
-- 第五里程碑已完成本地测试、双制品安装验收和独立审阅，尚待提交和推送；本阶段不自动修改系统配置。
+- 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
 
 下一步：
 
-- 提交第五里程碑；
 - 创建/更新 GitHub 公开仓库并推送，观察 Python 3.12/3.14 CI 与包 job；
 - 之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- 第五里程碑的 `.github/workflows/ci.yml`、`docs/release-check.md`、`pyproject.toml` 及同步文档；已通过本地测试、Ruff、双制品安装、diff check 和独立审阅，待提交。
+- 无；本次状态文档提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -165,7 +164,7 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第四里程碑状态提交 `418dc66`；第五里程碑文件尚未提交，提交后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第五里程碑 `c936e3d`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
