@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（远程基线 `67697c7` 已推送并通过 main CI；`workspace-scope` 为未提交本地切片）
+状态：暂停（`workspace-scope` 提交 `b981bf1` 已推送并通过 main CI `32712146556`；等待 host 快照）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：`workspace-scope` 已完成本地设计、实现和回归，下一步先由主 Agent 复核、提交并运行 CI；通过后再由用户在宿主端手动采集双端快照。
+当前阶段：`workspace-scope` 已完成设计、实现、独立复审、真实项目矩阵、本地回归、提交推送和远程 CI；本轮按用户要求停止扩展，等待宿主端快照。
 
-下一步：先复核当前未提交修改并创建功能提交，随后运行 Windows CI；CI 通过后按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，再运行 host ↔ Codex `compare`。
+下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`；恢复任务后由 Agent 读取现有 Codex 快照并运行 host ↔ Codex `compare`。
 
-最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff 和 diff check 已通过；覆盖四种完整状态、纯 unknown 归约、预验证零调用、顺序/调用次数、partial 异常/中断、脱敏和 CLI 退出码。远程 `67697c7` 基线的 main CI [`32708225452`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) 不包含本地未提交切片（详见 `docs/PROGRESS.md`）。
+最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff 和 diff check 已通过；真实矩阵得到 Triton `both_usable`，MyMineCraft/MCP Lab `target_specific_failure`，四个目录无残留。提交 `b981bf1` 的 main CI [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已完成 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传（详见 `docs/PROGRESS.md`）。
 
 真实项目复验：`project-doctor` 正确识别 MyMineCraft 的 Node + pnpm 和 MCP Interop Lab 的 Python；两份无标准依赖 marker 的旧 Triton 源码树保守返回 `unknown`。同一 Codex 上下文的 `workspace-probe` 在 Triton 优化项目六步通过，在 MyMineCraft 与 MCP Interop Lab 创建目录时返回 WinError 5；三次均无残留。
 
@@ -91,7 +91,7 @@
 - [x] snapshot 写入改为有界 `O_EXCL` 临时文件流程；权限/其他写入错误快速退出 2，失败不留下本次临时文件，覆盖碰撞、写入、fsync、替换和 CLI 错误路径测试。
 - [x] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已通过本地及远程验证。
 - [x] `git-doctor` 独立 v1：固定只读命令、状态归约、脱敏、CLI/退出码和常见 remote 边界已通过本地及远程验证。
-- [x] `workspace-scope` 独立 v1：双目录预验证、target/control 单次顺序调用、usable/failed/unknown 归约、完整/partial `inconclusive`、CLI/Console/JSON 和 cp1252 help 已完成本地验证；远程 CI 待主 Agent 提交后执行。
+- [x] `workspace-scope` 独立 v1：双目录预验证、target/control 单次顺序调用、usable/failed/unknown 归约、完整/partial `inconclusive`、CLI/Console/JSON 和 cp1252 help 已完成本地及远程验证。
 
 ## 计划
 
@@ -111,7 +111,7 @@
 - [x] 14. 建立 host/Agent 双端采集协议；不新增伪自动化包装，Codex 端已在 `%TEMP%` 生成并验证首份快照。
 - [x] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；设计、实现、复审与远程验证完成。
 - [x] 16. 增加独立 `git-doctor` v1：离线判断本地 Git readiness；不验证远程认证、不联网、不写配置；设计、实现、复审与远程验证完成。
-- [x] 17. 增加独立 `workspace-scope` v1：预验证两个显式目录后按 target/control 各调用一次既有 probe；实现和本地回归完成，待提交及远程 CI。
+- [x] 17. 增加独立 `workspace-scope` v1：预验证两个显式目录后按 target/control 各调用一次既有 probe；设计、实现、复审、真实矩阵与远程验证完成。
 
 ## 技术和环境
 
@@ -152,22 +152,28 @@
 - snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
 - `command-doctor` 已完成独立 v1 报告、严格 basename、PATHEXT 候选、共享 launcher probe、固定 `--version`、裸 PowerShell/执行策略/Path refresh 检查、非 Windows 门禁和 CLI 退出码，并在 `a311f96` 推送后通过远程验证。
 - `git-doctor` 已完成独立 v1 报告、Git/remote/helper 归约、GitHub CLI 条件探测、固定命令白名单、失败结构化证据、37 项定向回归和真实仓库根只读验收；提交 `67697c7` 已通过 Windows CI `32708225452`。
-- `workspace-scope` 已完成独立 v1 报告、双目录输入预验证、target/control 顺序各一次既有 probe、usable/failed/unknown 归约、五种固定状态、partial 异常/中断和 CLI 输出；当前为未提交本地实现。
+- `workspace-scope` 已完成独立 v1 报告、双目录输入预验证、target/control 顺序各一次既有 probe、usable/failed/unknown 归约、五种固定状态、partial 异常/中断和 CLI 输出；提交 `b981bf1` 已通过 Windows CI `32712146556`。
 
 当前阻塞：
 
-- `workspace-scope` 尚未提交或纳入远程 CI；除此之外无认证、Windows CI 或制品安装阻塞。
+- 无认证、本地实现、Windows CI 或制品安装阻塞。
 - Codex 端快照已生成；宿主端必须由用户在普通 PowerShell 手动运行一次，当前尚未形成成对证据，因此不能断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 主 Agent 先复核并提交 `workspace-scope`，运行 Windows CI；通过后用户再按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`，执行首次 `compare`。
+- 用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`；恢复任务后由 Agent 执行首次 host ↔ Codex `compare`。
 - 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
+
+本轮停止与恢复边界：
+
+- 用户要求在本轮技术迭代完成后停止；因此不再新增 ACL、代理、网络、长路径或更多生态识别功能。
+- 只有 host ↔ Codex 的真实 compare、新的稳定 workspace-scope 失败类型，或实际项目暴露现有 doctor 无法回答的必要问题时，才设计下一功能。
+- 恢复时先读取本文件与 `docs/PROGRESS.md`，检查 `git status --short`，不要重复已经通过的 261 项/CI 验证。
 
 工作区恢复检查：
 
 - 先运行 `git status --short`，以实际输出判断是否存在未提交修改；不要在此维护容易过期的文件清单。
-- 远程 `main` 的最近已验证基线为 `67697c7`（Git Doctor）；`workspace-scope` 及其相关文档/测试属于当前未提交修改，恢复时不得把旧提交的 CI 结果视为本地切片已验证。
+- 远程 `main` 的最近已验证功能基线为 `b981bf1`（Workspace Scope），对应 Windows CI `32712146556`。
 
 ## 关键决策
 
@@ -243,13 +249,14 @@
 | 2026-08-24 | git-doctor GitHub Windows CI | [run 32708225452](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) | 提交 `67697c7` 的 Python 3.12/3.14 全量 237 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | git-doctor 真实仓库根 | `python -B -m win_agent_preflight git-doctor --target . --json --pretty --timeout 1` | 退出 0；`local_ready=true`，6 pass、`github.auth` 为固定 `unknown/not_checked_offline`；无文件写入，未执行认证或网络命令 |
 | 2026-08-24 | workspace-scope 定向回归 | `python -B -m pytest tests/test_workspace_scope.py tests/test_cli_help.py -q -p no:cacheprovider` | workspace-scope 24 项 + CLI help 1 项，共 25 passed；覆盖四种状态、纯 unknown 归约、预验证零 probe 调用、顺序/次数、异常/中断 partial、脱敏、CLI JSON/Console/退出码和 cp1252 help |
-| 2026-08-24 | workspace-scope 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 261 passed；Ruff 通过；diff check 无内容错误；workspace-scope 仍未提交/推送 |
+| 2026-08-24 | workspace-scope 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 提交前本地验证 261 passed；Ruff 通过；diff check 无内容错误 |
 | 2026-08-24 | workspace-scope 真实项目矩阵 | 分别以 Evolutionary Triton Optimizer、MyMineCraft、MCP Interop Lab 为 `--target`，以 `%TEMP%` 为 `--control` | Triton 与 control 均六项通过，状态 `both_usable`、退出 0；MyMineCraft/MCP Lab 均在 target 创建目录时返回 WinError 5，control 六项通过，状态 `target_specific_failure`、退出 1；四个目录探针残留均为 0 |
+| 2026-08-24 | workspace-scope GitHub Windows CI | [run 32712146556](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) | 提交 `b981bf1` 的 Python 3.12/3.14 全量 261 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近已验证远程基线：`git-doctor` `67697c7`，已推送并通过 Windows CI run `32708225452`；`workspace-scope` 属于当前未提交本地修改，不能沿用旧 CI 结论。
+- 最近已验证远程功能基线：`workspace-scope` `b981bf1`，已推送并通过 Windows CI run `32712146556`。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。

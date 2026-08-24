@@ -171,4 +171,4 @@ identity 只保留 name/email 是否配置及 Git scope；未知或畸形 scope 
 
 预验证成功后只按固定顺序调用现有 `run_workspace_probe` 两次：先 target，再 control；真实 probe 会收到相同的 `user_profile` 脱敏参数，注入测试 runner 仍只需接受 `path` 与 `allow_write`。子报告归约为 usable、failed（任一 FAIL 或 residual）或 unknown；普通 failed 仍继续另一个目录，任一 unknown 使正常双返回结果为 `inconclusive` 且 `complete=true`。非预期异常或 Ctrl-C 生成只含已获得子报告的 `inconclusive` partial，顶层 `complete=false`，并停止后续调用。独立 v1 JSON 保留脱敏 target/control 路径、嵌套 probe 报告和脱敏 evidence，Console 只显示状态与成功布尔值。
 
-该命令只复用 probe 的既有六步和边界，不枚举目录、不递归清理、不联网、不修改 ACL/PATH/注册表/执行策略；退出码为成功 0、能力或 partial 失败 1、输入/平台错误 2、Ctrl-C 130。当前切片为本地未提交实现，必须在主 Agent 复核后再提交并由 CI 验证。
+该命令只复用 probe 的既有六步和边界，不枚举目录、不递归清理、不联网、不修改 ACL/PATH/注册表/执行策略；退出码为成功 0、能力或 partial 失败 1、输入/平台错误 2、Ctrl-C 130。提交 `b981bf1` 已通过 Windows CI `32712146556`。

@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`git-doctor` 提交 `67697c7` 已推送，main CI run [`32708225452`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32708225452) 已全部通过；当前 `workspace-scope` 仍是未提交的本地切片，尚未纳入远程 CI。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`workspace-scope`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`workspace-scope` 提交 `b981bf1` 已推送，main CI run [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已全部通过。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`workspace-scope`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -73,7 +73,7 @@ py -3.12 -m build --sdist --wheel
 
 `.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；包含 `command-doctor` 的 main run `32703174150` 已完成整条流水线和制品上传。
 
-这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。`32703174150` 是包含 command-doctor 的历史 200 项验证，`32708225452` 是 Git Doctor 提交的 237 项验证；当前本地 `workspace-scope` 将测试总数增至 261，尚未远程验证。
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。最新 run `32712146556` 已验证包含 `workspace-scope` 的 Python 3.12/3.14 全量 261 项测试、严格帮助检查、Ruff、sdist/wheel 双安装和制品上传。
 
 全局 `scan` 仍检查固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`；需要按项目 marker 缩小到实际工具链时使用 `project-doctor --target <目录>`。
 
