@@ -2,7 +2,7 @@
 
 ## 目标
 
-第二里程碑在首阶段稳定诊断核心上增加 `snapshot`/`compare`：快照保存有限宿主事实和同次 `scan`，比较只使用规范化后的稳定字段。真实 Agent 宿主终端仍需用户在对应环境中分别生成快照；本阶段不自动进入沙箱。
+第三里程碑在首阶段稳定诊断核心和第二里程碑 `snapshot`/`compare` 上增加只读注册表 PATH 事实：快照仍保存有限宿主事实和同次 `scan`，比较只使用规范化后的稳定字段。真实 Agent 宿主终端仍需用户在对应环境中分别生成快照；本阶段不自动进入沙箱。
 
 ## 模块边界
 
@@ -11,7 +11,7 @@ cli.py
   ├─ checks.py（诊断分类与扫描编排）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
-       ├─ windows.py（PATH 候选和 PowerShell 事实）
+       ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
        ├─ runner.py（所有外部命令的唯一执行边界）
        └─ models.py（不可变、可序列化模型）
   └─ reporting.py（Console/JSON，不改变诊断语义）
@@ -19,7 +19,7 @@ cli.py
 
 - `models.py` 不调用系统；字段和序列化顺序稳定。
 - `runner.py` 接收可注入的执行函数，统一超时、返回码、stdout/stderr 和启动异常。
-- `windows.py` 负责当前进程环境中的 Windows 事实采集；路径只作为脱敏后的证据流出。
+- `windows.py` 负责当前进程环境中的 Windows 事实采集；注册表只读 HKLM/HKCU 环境键，路径只作为脱敏后的证据流出。
 - `checks.py` 将事实转换为 `pass`、`warning`、`fail`、`unknown`，不负责 CLI 参数或输出格式。
 - `cli.py` 负责解析三个子命令；`scan` 的调用路径和 v1 JSON/退出语义保持不变。
 - `reporting.py` 只渲染已有结果，不再次运行命令。
@@ -42,6 +42,19 @@ cli.py
 `npm.ps1` 不通过普通进程直接运行，而是经 PowerShell 的 `-NoProfile -Command` 调用，以便识别脚本执行策略阻止；不会修改策略。
 
 裸 `npm` 另有独立的 `powershell.command.npm` 检查：在选定 PowerShell 中执行 `Get-Command npm` 和 `npm --version`。因此 `npm.cmd` 候选可启动不等于 PowerShell 裸命令可用。
+
+## 注册表 PATH 与刷新诊断
+
+`RegistryPathFacts` 是不可变的两 scope 事实模型。默认 reader 只读：
+
+- HKLM：`SYSTEM\CurrentControlSet\Control\Session Manager\Environment`；
+- HKCU：`Environment`。
+
+缺失键或 `Path` 值表示为空且事实完整；读取异常或 `Path` 不是字符串表示对应 scope 不完整。测试和嵌入调用可向 `collect_registry_path_facts`、`collect_path_refresh_check`、`scan_environment` 或 `capture_snapshot` 注入按 `machine`/`user` 读取的 reader，不需要修改本机注册表。
+
+注册表 PATH 中的 `%NAME%` 按大小写不敏感展开，最多 8 轮：机器 PATH 使用 HKLM 值再回退到当前进程环境，用户 PATH 使用 HKCU、HKLM、当前进程环境。未解析变量只报告变量名。比较使用 `ntpath`，忽略大小写、斜杠、引号和尾分隔符，不解析真实路径，也不检查目录是否存在；诊断证据保留 `machine`/`user` 来源。
+
+刷新检查只产生 `pass`、`warning` 或 `unknown`，不会产生 `fail`：完整且全部继承为 `pass`，已证明缺失为 `warning`（即便另一 scope 不完整），只有错误/未解析且没有已证明缺失为 `unknown`。
 
 ## EnvironmentSnapshot v1
 

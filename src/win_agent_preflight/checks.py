@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from .models import CheckResult, CheckStatus, CommandCandidate, ScanReport
 from .runner import Runner
 from .windows import (
+    RegistryValueReader,
     collect_path_refresh_check,
     collect_powershell_check,
     collect_powershell_command_check,
@@ -37,6 +38,7 @@ def scan_environment(
     env: Mapping[str, str] | None = None,
     user_profile: str | None = None,
     user_path: str | None = None,
+    registry_reader: RegistryValueReader | Mapping[str, object] | None = None,
     timeout: float = 5.0,
 ) -> ScanReport:
     environment = env if env is not None else os.environ
@@ -60,8 +62,10 @@ def scan_environment(
     results.append(
         collect_path_refresh_check(
             process_path=environment.get("PATH"),
+            process_env=environment,
             user_path=user_path,
             user_profile=user_profile,
+            registry_reader=registry_reader,
         )
     )
     results.append(

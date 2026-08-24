@@ -16,7 +16,7 @@ from typing import Any
 from .checks import scan_environment
 from .models import CheckStatus
 from .runner import Runner
-from .windows import redact_text
+from .windows import RegistryValueReader, redact_text
 
 SNAPSHOT_SCHEMA_VERSION = 1
 SNAPSHOT_TOOL = "win-agent-preflight"
@@ -105,6 +105,7 @@ def capture_snapshot(
     env: Mapping[str, str] | None = None,
     user_profile: str | None = None,
     user_path: str | None = None,
+    registry_reader: RegistryValueReader | Mapping[str, object] | None = None,
     timeout: float = 5.0,
     cwd: str | None = None,
     executable: str | None = None,
@@ -122,6 +123,7 @@ def capture_snapshot(
         env=environment,
         user_profile=profile,
         user_path=user_path,
+        registry_reader=registry_reader,
         timeout=timeout,
     )
     return EnvironmentSnapshot(

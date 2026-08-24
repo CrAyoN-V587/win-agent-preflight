@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
@@ -80,6 +81,30 @@ def test_snapshot_contains_only_selected_environment_facts() -> None:
     assert payload["environment"]["path"] == [r"%USERPROFILE%\bin", r"C:\Windows"]
     assert "SECRET_TOKEN" not in str(payload)
     assert payload["scan"]["schema_version"] == 1
+
+
+def test_snapshot_does_not_serialize_expanded_registry_path_values() -> None:
+    private_value = r"C:\Users\alice\private-token-root"
+    snapshot = capture_snapshot(
+        "host",
+        env={"PATH": r"C:\Windows", "PATHEXT": ".EXE", "USERPROFILE": r"C:\Users\alice"},
+        user_profile=r"C:\Users\alice",
+        registry_reader={
+            "machine": {"Path": ""},
+            "user": {"Path": r"%PRIVATE_ROOT%\bin", "PRIVATE_ROOT": private_value},
+        },
+        cwd=r"C:\Users\alice\repo",
+        executable=r"C:\Users\alice\python.exe",
+        platform="win32",
+        captured_at="fixed-time",
+    )
+    serialized = json.dumps(snapshot.to_dict(), ensure_ascii=False)
+    assert private_value not in serialized
+    path_check = next(
+        item for item in snapshot.scan["checks"] if item["id"] == "windows.path_refresh"
+    )
+    assert path_check["status"] == CheckStatus.WARNING.value
+    assert any("%PRIVATE_ROOT%" in item for item in path_check["evidence"])
 
 
 def test_parser_ignores_unknown_fields_but_rejects_higher_versions() -> None:

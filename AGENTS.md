@@ -6,7 +6,7 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：`scan` 已稳定；`snapshot`/`compare` 第二里程碑已实现。
+- 当前阶段：`scan`、`snapshot`/`compare` 已稳定；第三里程碑的只读注册表 PATH 刷新诊断已实现。
 
 ## 环境和命令
 
@@ -26,7 +26,7 @@
 
 ## 修改边界
 
-- 当前允许的结构调整：围绕 `scan` 稳定边界和 `snapshot`/`compare` 第二里程碑的最小模块调整。
+- 当前允许的结构调整：围绕 `scan`、`snapshot`/`compare` 稳定边界和只读注册表 PATH 刷新诊断的最小模块调整。
 - 需要保留的数据或接口：`CheckResult` JSON 字段、`Runner` 注入边界和 `%USERPROFILE%` 脱敏规则。
 - 默认不兼容的旧实现：项目尚无旧版本；不为假设中的 Linux/macOS 兼容矩阵设计。
 

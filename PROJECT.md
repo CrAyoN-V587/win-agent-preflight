@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第二里程碑实现完成，待主 Agent 验收）
+状态：进行中（第三里程碑完成）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,9 +10,9 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第二里程碑——在稳定 `scan` 上增加 EnvironmentSnapshot v1 与 `compare`。
+当前阶段：第三里程碑——在稳定 `scan` 和快照比较上增加只读注册表 PATH 事实与刷新诊断。
 
-下一步唯一动作：由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照，再验证差异解释。
+下一步唯一动作：创建 GitHub 公开仓库并推送三个本地里程碑；随后由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：`python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、同一当前 Agent 环境快照自比较（详见 `docs/PROGRESS.md`）。
 
@@ -35,6 +35,7 @@
 - Python `>=3.12` 下的 `scan`、`snapshot`、`compare` CLI；
 - `python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh` 命令发现与真实启动；
 - PowerShell 执行策略事实采集；
+- 只读采集 HKLM/HKCU 注册表 PATH，展开变量并诊断当前进程 PATH 是否继承；
 - Console 和稳定 JSON 报告；
 - 可注入 Runner、超时、路径脱敏和模型序列化测试。
 - EnvironmentSnapshot v1、嵌入 scan、输出目录创建和不覆盖保护；
@@ -43,7 +44,7 @@
 不包含：
 
 - 自动进入 Agent 沙箱或自动生成真实 host/agent 双端快照；
-- 联网、自动修复、注册表或执行策略修改；
+- 联网、自动修复、注册表或执行策略写入/修改；
 - 密钥采集、哈希、发布级安全审计；
 - GUI、数据库和 LLM 调用。
 
@@ -51,7 +52,7 @@
 
 - [x] 首个切片可通过一条命令执行 `scan`，并同时支持 Console 与 JSON。
 - [x] 命令缺失、多候选、超时、PowerShell 脚本阻止和 PATH 未刷新注入场景均有测试。
-- [ ] 从 Windows 用户 PATH 注册表采集真实 PATH，完成非注入的 PATH 未刷新诊断。
+- [x] 只读采集 HKLM/HKCU PATH，完成非注入的 PATH 未刷新诊断；异常/类型错误保持为不完整事实。
 - [x] 可选 Agent 未安装不产生 `fail`；所有 `fail` 都包含证据。
 - [x] 用户目录统一脱敏为 `%USERPROFILE%`，不输出密钥值或哈希。
 - [x] PROJECT.md 与 `docs/PROGRESS.md` 能在暂停后直接恢复。
@@ -61,8 +62,9 @@
 - [x] 1. 建立数据模型、Runner、命令发现和 PowerShell 事实采集边界。
 - [x] 2. 实现 `scan` 的 Console/JSON 输出并覆盖首批故障案例。
 - [x] 3. 加入 EnvironmentSnapshot v1、`snapshot` 写出和 `compare` 差异退出语义。
-- [ ] 4. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
-- [ ] 5. 增加 Agent 原生 Doctor 适配器、Windows CI 和发布文档。
+- [x] 4. 加入只读注册表 PATH 事实、变量展开和跨 scope 刷新诊断。
+- [ ] 5. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
+- [ ] 6. 增加 Agent 原生 Doctor 适配器、Windows CI 和发布文档。
 
 ## 技术和环境
 
@@ -91,19 +93,20 @@
 - `scan` Console/JSON；
 - EnvironmentSnapshot v1、`snapshot` 写出和 `compare` Console/JSON；
 - 快照输入窄解析、版本/类型错误处理和规范化差异退出码；
-- 首批模型、脱敏、缺失、候选和超时测试。
+- 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
+- 首批模型、脱敏、缺失、候选、超时和注册表事实测试。
 
 当前阻塞：
 
-- 无。
+- 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
 
 下一步：
 
-- 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 创建 GitHub 公开仓库并推送当前 `main`；之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- 第二里程碑修改尚未由本 Agent 创建提交；由主 Agent 检查差异后按里程碑提交和推送。
+- 第三里程碑将由当前里程碑提交保存；提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -114,20 +117,22 @@
 | Compare 忽略 label/time/summary/candidate_count | 这些字段会在同一环境重复运行时自然变化，不应制造实质差异 | 2026-08-24 |
 | 外部命令统一经可注入 Runner | 让超时、启动失败和环境差异可以稳定复现 | 2026-08-24 |
 | 可选 Agent 缺失为 warning | “未安装”不是 Agent 故障，避免误报 | 2026-08-24 |
+| 注册表 PATH 只读且异常不降级为空 | 区分真实空值和权限/类型错误，避免误报 PATH 已刷新 | 2026-08-24 |
+| 刷新检查永不 fail | PATH 缺失/不完整是环境事实不足或提示，不是项目命令本身已证实失败 | 2026-08-24 |
 
 ## 验证证据
 
 | 日期 | 验证内容 | 命令或步骤 | 结果 |
 | --- | --- | --- | --- |
 | 2026-08-24 | 运行时 | `python --version` | Python 3.12.7 |
-| 2026-08-24 | 单元、场景和 CLI 端到端测试 | `python -B -m pytest -q -p no:cacheprovider` | 14 passed |
+| 2026-08-24 | 单元、场景和 CLI 端到端测试 | `python -B -m pytest -q -p no:cacheprovider` | 42 passed |
 | 2026-08-24 | 静态检查 | `python -m ruff check . --no-cache` | All checks passed |
-| 2026-08-24 | 真实 Windows CLI | `python -B -m win_agent_preflight scan --json --pretty --timeout 2`、`agent-preflight scan --timeout 2` | 均退出 0；JSON 可解析，4 pass、8 warning、0 fail、1 unknown；WindowsApps 不可访问别名已被安全跳过 |
+| 2026-08-24 | 真实 Windows 注册表和 CLI | `python -B -c "from win_agent_preflight.windows import collect_registry_path_facts; print(collect_registry_path_facts())"`、`python -B -m win_agent_preflight scan --json --pretty --timeout 2` | HKLM/HKCU 读取完整；CLI 退出 0，JSON 可解析，10 pass、3 warning、0 fail、0 unknown；未写入注册表 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：首个切片提交 `c1eb9c9`；第二里程碑当前工作区修改待主 Agent 验收提交。
+- 最近稳定提交：第三里程碑提交后的 `main` 当前 HEAD；上一稳定提交为 `b3f5d23`。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
@@ -137,5 +142,5 @@
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
 - `npm.ps1` 的阻止判断来自实际 Runner 结果和 PowerShell 事实，不会修改执行策略。
-- PATH 未刷新目前只完成注入场景比较；尚未读取 Windows 用户 PATH 注册表，因此真实用户 PATH 采集留待下一阶段。
+- 注册表 PATH 只读采集已实现；非 Windows 平台、读取异常、类型错误或未解析变量返回 `unknown`，但另一 scope 已证明缺失时返回 `warning`。
 - 命令发现遇到不可访问的 PATH 候选会跳过并继续扫描；当前不会把该情况细分为“不可访问候选”，只在后续版本增加精确分类。

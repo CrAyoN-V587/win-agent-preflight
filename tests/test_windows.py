@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+import win_agent_preflight.windows as windows
 from win_agent_preflight.checks import check_command
 from win_agent_preflight.models import CheckStatus
 from win_agent_preflight.runner import CommandExecution, Runner
 from win_agent_preflight.windows import (
+    RegistryPathFacts,
     collect_path_refresh_check,
     collect_powershell_command_check,
+    collect_registry_path_facts,
     discover_command,
+    expand_registry_path,
     redact_text,
 )
 
@@ -139,6 +145,249 @@ def test_path_refresh_warns_for_uninherited_user_entry(tmp_path: Path) -> None:
     )
     assert result.status is CheckStatus.WARNING
     assert result.details["missing_count"] == 1
+
+
+def test_registry_facts_are_immutable_and_reader_covers_both_scopes() -> None:
+    calls: list[str] = []
+
+    def reader(scope: str):
+        calls.append(scope)
+        return {
+            "Path": rf"%ROOT%;C:\{scope}",
+            "Root": rf"C:\{scope}\root",
+        }
+
+    facts = collect_registry_path_facts(reader=reader)
+    assert calls == ["machine", "user"]
+    assert facts.machine_path == r"%ROOT%;C:\machine"
+    assert facts.user_path == r"%ROOT%;C:\user"
+    assert facts.machine_complete is True
+    assert facts.user_complete is True
+    assert facts.machine_values == (("Path", r"%ROOT%;C:\machine"), ("Root", r"C:\machine\root"))
+    with pytest.raises(Exception):
+        facts.machine_path = "changed"  # type: ignore[misc]
+
+
+def test_registry_missing_key_or_path_is_complete_empty_fact() -> None:
+    facts = collect_registry_path_facts(
+        reader=lambda scope: {} if scope == "machine" else {"Other": "x"}
+    )
+    assert facts.machine_path == ""
+    assert facts.user_path == ""
+    assert facts.complete is True
+
+
+def test_registry_reader_exception_is_incomplete_not_empty_success() -> None:
+    def reader(scope: str):
+        if scope == "machine":
+            raise PermissionError("denied")
+        return {"Path": r"C:\UserTools"}
+
+    facts = collect_registry_path_facts(reader=reader)
+    assert facts.machine_path == ""
+    assert facts.machine_complete is False
+    assert facts.user_complete is True
+    assert facts.machine_error
+
+
+def test_reader_file_not_found_is_an_incomplete_scope() -> None:
+    def reader(scope: str):
+        if scope == "machine":
+            raise FileNotFoundError("key does not exist")
+        return {"Path": ""}
+
+    facts = collect_registry_path_facts(reader=reader)
+    assert facts.machine_complete is False
+    assert facts.machine_path == ""
+
+
+def test_registry_path_type_error_is_incomplete() -> None:
+    facts = collect_registry_path_facts(
+        reader=lambda scope: {"Path": 123} if scope == "machine" else {"Path": ""}
+    )
+    assert facts.machine_complete is False
+    assert facts.user_complete is True
+    assert facts.machine_error and "not a string" in facts.machine_error
+
+
+@pytest.mark.parametrize("value_type", [windows._REG_SZ, windows._REG_EXPAND_SZ])
+def test_registry_string_types_are_accepted(value_type: int) -> None:
+    facts = collect_registry_path_facts(
+        reader=lambda scope: {
+            "Path": windows._RegistryValue(r"C:\Tools", value_type)
+        }
+    )
+    assert facts.machine_complete is True
+    assert facts.user_complete is True
+    assert facts.machine_path == r"C:\Tools"
+
+
+def test_registry_path_other_type_is_incomplete() -> None:
+    other_type = next(
+        value for value in range(1, 32) if value not in windows._ALLOWED_REGISTRY_TYPES
+    )
+    facts = collect_registry_path_facts(
+        reader=lambda scope: {"Path": (r"C:\Tools", other_type)}
+    )
+    assert facts.machine_complete is False
+    assert facts.user_complete is False
+
+
+def test_registry_path_none_is_incomplete_but_missing_path_is_empty() -> None:
+    facts = collect_registry_path_facts(
+        reader=lambda scope: {"Path": None} if scope == "machine" else {"Other": "value"}
+    )
+    assert facts.machine_complete is False
+    assert facts.machine_path == ""
+    assert facts.user_complete is True
+    assert facts.user_path == ""
+
+
+def test_registry_path_expansion_is_case_insensitive_and_scope_ordered() -> None:
+    facts = RegistryPathFacts(
+        machine_values=(("Root", r"C:\Machine"), ("Shared", r"C:\MachineShared")),
+        user_values=(("ROOT", r"C:\User"), ("Shared", r"C:\UserShared")),
+    )
+    machine, machine_unresolved = expand_registry_path(
+        r"%root%;%shared%;%ProcessOnly%",
+        scope="machine",
+        facts=facts,
+        process_env={"PROCESSONLY": r"C:\Process", "Root": r"C:\ProcessRoot"},
+    )
+    user, user_unresolved = expand_registry_path(
+        r"%root%;%shared%;%ProcessOnly%",
+        scope="user",
+        facts=facts,
+        process_env={"PROCESSONLY": r"C:\Process", "Root": r"C:\ProcessRoot"},
+    )
+    assert machine == r"C:\Machine;C:\MachineShared;C:\Process"
+    assert user == r"C:\User;C:\UserShared;C:\Process"
+    assert machine_unresolved == ()
+    assert user_unresolved == ()
+
+
+def test_registry_path_expansion_allows_nested_references_for_eight_rounds() -> None:
+    facts = RegistryPathFacts(
+        machine_values=tuple((f"V{index}", f"%V{index + 1}%") for index in range(1, 8))
+        + (("V8", r"C:\Deep"),)
+    )
+    expanded, unresolved = expand_registry_path(
+        "%V1%", scope="machine", facts=facts, process_env={}
+    )
+    assert expanded == r"C:\Deep"
+    assert unresolved == ()
+
+
+def test_registry_path_unresolved_evidence_only_contains_variable_names() -> None:
+    secret = r"C:\Users\alice\private-token"
+    result = collect_path_refresh_check(
+        process_path=r"C:\Windows",
+        registry_facts=RegistryPathFacts(user_path=r"%MISSING%"),
+    )
+    assert result.status is CheckStatus.UNKNOWN
+    joined = " ".join(result.evidence)
+    assert "MISSING" in joined
+    assert secret not in joined
+
+
+def test_path_refresh_handles_unresolved_and_missing_items_independently() -> None:
+    result = collect_path_refresh_check(
+        process_path=r"C:\Present",
+        registry_facts=RegistryPathFacts(
+            user_path=r"%UNSET_ROOT%;C:\Missing;C:\Present"
+        ),
+    )
+    assert result.status is CheckStatus.WARNING
+    assert result.details == {"missing_count": 1}
+    joined = " ".join(result.evidence)
+    assert "UNSET_ROOT" in joined
+    assert r"C:\Missing" in joined
+
+
+def test_path_refresh_uses_windows_path_normalization_and_preserves_source() -> None:
+    result = collect_path_refresh_check(
+        process_path=r'"C:/Tools/";C:\Windows\\',
+        registry_facts=RegistryPathFacts(
+            machine_path=r"C:\Tools",
+            user_path=r'"C:/Missing/"',
+        ),
+    )
+    assert result.status is CheckStatus.WARNING
+    assert result.details == {"missing_count": 1}
+    assert any("user:" in item and "C:/Missing" in item for item in result.evidence)
+
+
+def test_path_refresh_passes_when_both_scopes_are_fully_inherited() -> None:
+    result = collect_path_refresh_check(
+        process_path=r"C:\Machine;C:\User",
+        registry_facts=RegistryPathFacts(
+            machine_path=r"c:/machine/",
+            user_path=r'"C:\user\\"',
+        ),
+    )
+    assert result.status is CheckStatus.PASS
+    assert result.details == {}
+
+
+def test_path_refresh_warning_survives_error_in_other_scope() -> None:
+    result = collect_path_refresh_check(
+        process_path=r"C:\Windows",
+        registry_facts=RegistryPathFacts(
+            machine_path=r"C:\MissingMachine",
+            user_complete=False,
+            user_error="user registry read failed",
+        ),
+    )
+    assert result.status is CheckStatus.WARNING
+    assert result.details == {"missing_count": 1}
+    assert any("user registry PATH fact is incomplete" in item for item in result.evidence)
+
+
+def test_path_refresh_is_unknown_without_process_path() -> None:
+    result = collect_path_refresh_check(
+        process_path="",
+        registry_facts=RegistryPathFacts(user_path=r"C:\Missing"),
+    )
+    assert result.status is CheckStatus.UNKNOWN
+
+
+def test_path_refresh_is_unknown_for_non_windows(monkeypatch) -> None:
+    monkeypatch.setattr(windows.os, "name", "posix")
+    result = collect_path_refresh_check(
+        process_path=r"C:\Windows",
+        user_path=r"C:\Missing",
+    )
+    assert result.status is CheckStatus.UNKNOWN
+
+
+def test_path_refresh_is_unknown_for_only_registry_errors() -> None:
+    result = collect_path_refresh_check(
+        process_path=r"C:\Windows",
+        registry_facts=RegistryPathFacts(
+            machine_complete=False,
+            machine_error="machine registry read failed",
+            user_complete=False,
+            user_error="user registry read failed",
+        ),
+    )
+    assert result.status is CheckStatus.UNKNOWN
+
+
+def test_injected_user_path_takes_precedence_over_registry_reader() -> None:
+    calls: list[str] = []
+
+    def reader(scope: str):
+        calls.append(scope)
+        return {"Path": r"C:\Reader"}
+
+    result = collect_path_refresh_check(
+        process_path=r"C:\Injected",
+        user_path=r"C:\Injected",
+        registry_reader=reader,
+    )
+    assert result.status is CheckStatus.WARNING
+    assert result.details == {"missing_count": 1}
+    assert calls == ["machine", "user"]
 
 
 def test_user_path_is_redacted() -> None:
