@@ -38,6 +38,8 @@ jobs:
         run: python -m ruff check . --no-cache
 
       - name: Check CLI help
+        env:
+          PYTHONIOENCODING: cp1252:strict
         run: python -m win_agent_preflight --help
 
       - name: Probe runner workspace
@@ -77,6 +79,8 @@ jobs:
 
       - name: Install and run sdist in a clean venv
         shell: pwsh
+        env:
+          PYTHONIOENCODING: cp1252:strict
         run: |
           $sdist = @(Get-ChildItem -LiteralPath dist -Filter *.tar.gz -File)[0]
           $venv = Join-Path $env:RUNNER_TEMP "win-agent-preflight-sdist-venv"
@@ -89,6 +93,8 @@ jobs:
 
       - name: Install and run wheel in a clean venv
         shell: pwsh
+        env:
+          PYTHONIOENCODING: cp1252:strict
         run: |
           $wheel = @(Get-ChildItem -LiteralPath dist -Filter *.whl -File)[0]
           $venv = Join-Path $env:RUNNER_TEMP "win-agent-preflight-wheel-venv"

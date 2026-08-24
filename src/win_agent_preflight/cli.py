@@ -39,7 +39,7 @@ from .workspace_probe import (
     run_workspace_probe,
 )
 
-app = typer.Typer(add_completion=False, no_args_is_help=True)
+app = typer.Typer(add_completion=False, no_args_is_help=True, rich_markup_mode=None)
 
 
 @app.callback()
@@ -54,11 +54,11 @@ def main() -> None:
 
 @app.command()
 def scan(
-    json_output: bool = typer.Option(False, "--json", help="输出稳定 JSON"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
-    timeout: float = typer.Option(5.0, min=0.1, help="每个外部命令的超时秒数"),
+    json_output: bool = typer.Option(False, "--json", help="Print stable JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per external command in seconds"),
 ) -> None:
-    """扫描当前 Windows 环境中的命令和 PowerShell 事实。"""
+    """Scan current Windows commands and PowerShell facts."""
 
     report = scan_environment(timeout=timeout)
     typer.echo(render_json(report, pretty=pretty) if json_output else render_console(report))
@@ -68,13 +68,13 @@ def scan(
 
 @app.command()
 def snapshot(
-    label: str = typer.Option(..., "--label", help="快照标签，例如 host 或 agent"),
-    output: Path = typer.Option(..., "--output", "-o", help="快照 JSON 输出路径"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
-    force: bool = typer.Option(False, "--force", help="覆盖已有输出文件"),
-    timeout: float = typer.Option(5.0, min=0.1, help="每个外部命令的超时秒数"),
+    label: str = typer.Option(..., "--label", help="Snapshot label, for example host or agent"),
+    output: Path = typer.Option(..., "--output", "-o", help="Snapshot JSON output path"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing output file"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per external command in seconds"),
 ) -> None:
-    """写出当前宿主环境的 v1 快照。"""
+    """Write a v1 snapshot of the current host environment."""
 
     try:
         captured = capture_snapshot(label, timeout=timeout)
@@ -87,12 +87,12 @@ def snapshot(
 
 @app.command()
 def compare(
-    baseline: Path = typer.Argument(..., help="基线快照 JSON"),
-    current: Path = typer.Argument(..., help="当前快照 JSON"),
-    json_output: bool = typer.Option(False, "--json", help="输出 JSON 差异"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
+    baseline: Path = typer.Argument(..., help="Baseline snapshot JSON"),
+    current: Path = typer.Argument(..., help="Current snapshot JSON"),
+    json_output: bool = typer.Option(False, "--json", help="Print JSON differences"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
 ) -> None:
-    """比较两个 v1 快照；等价为 0，有差异为 1，输入错误为 2。"""
+    """Compare two v1 snapshots; exit 0 if equal, 1 if different, 2 for bad input."""
 
     try:
         result = compare_snapshots(load_snapshot(baseline), load_snapshot(current))
@@ -113,13 +113,13 @@ def agent_doctor(
     agents: list[str] | None = typer.Option(
         None,
         "--agent",
-        help="要检查的 Agent，可重复；默认 codex、claude、dsh",
+        help="Agents to check; repeatable; defaults to codex, claude, dsh",
     ),
-    json_output: bool = typer.Option(False, "--json", help="输出独立的 v1 JSON"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
-    timeout: float = typer.Option(5.0, min=0.1, help="每个版本探针的超时秒数"),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per version probe in seconds"),
 ) -> None:
-    """只对 PATH 中已发现的 Agent 启动器执行一次 --version。"""
+    """Run --version only for Agent launchers found on PATH."""
 
     try:
         report = run_agent_doctor(agents=agents, timeout=timeout)
@@ -137,11 +137,11 @@ def agent_doctor(
 
 @app.command("support-report")
 def support_report(
-    json_output: bool = typer.Option(False, "--json", help="输出可分享的 v1 JSON"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
-    timeout: float = typer.Option(5.0, min=0.1, help="每个外部命令的超时秒数"),
+    json_output: bool = typer.Option(False, "--json", help="Print shareable v2 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per external command in seconds"),
 ) -> None:
-    """收集离线支持报告；不运行写入探针或网络流程。"""
+    """Collect an offline support report without write probes or network calls."""
 
     try:
         report = run_support_report(timeout=timeout)
@@ -159,16 +159,16 @@ def support_report(
 
 @app.command("workspace-probe")
 def workspace_probe(
-    target: Path = typer.Option(..., "--target", help="已存在的普通工作区目录"),
+    target: Path = typer.Option(..., "--target", help="Existing regular workspace directory"),
     allow_write: bool = typer.Option(
         False,
         "--allow-write",
-        help="明确允许在 target 直接子目录中执行一次性探针",
+        help="Allow one probe in a direct child of target",
     ),
-    json_output: bool = typer.Option(False, "--json", help="输出独立的 v1 JSON"),
-    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
 ) -> None:
-    """验证当前 Windows 工作区的最小写入、重命名和清理能力。"""
+    """Check minimal Windows workspace write, rename, and cleanup capabilities."""
 
     if not allow_write:
         typer.echo("workspace-probe error: --allow-write is required", err=True)

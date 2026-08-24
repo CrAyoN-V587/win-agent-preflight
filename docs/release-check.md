@@ -4,7 +4,7 @@
 
 ## 环境
 
-- Python 3.12 是当前已验证版本；Python 3.14 已加入 CI 矩阵，但等待首次 CI 运行确认。
+- 本机当前已验证 Python 3.12；首次 Windows CI run `32691934171` 已确认 Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过，但两个矩阵 job 在根 help 的 cp1252 编码阶段失败。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -42,6 +42,22 @@ py -3.12 -m venv .artifacts\wheel-check
 
 安装制品时不使用 `--no-deps`：运行时依赖 Typer 需要由包管理器解析。若网络不可用，应先准备可用的依赖源或 wheel；本项目不额外建设离线镜像、缓存或依赖打包层。`.artifacts\sdist-check` 和 `.artifacts\wheel-check` 是本地验收临时目录，已被忽略，不纳入提交。
 
+## cp1252 帮助复验
+
+Windows 旧代码页控制台也应能显示 CLI 帮助。公开的 Typer help/docstring 保持 ASCII；报告正文仍按项目输出约定保留中文。以下命令使用严格 `cp1252`，只请求帮助，不执行扫描、探针、联网或写文件：
+
+```powershell
+$env:PYTHONIOENCODING = "cp1252:strict"
+python -B -m win_agent_preflight --help
+.\.artifacts\sdist-check\Scripts\python.exe -B -m win_agent_preflight --help
+.\.artifacts\wheel-check\Scripts\python.exe -B -m win_agent_preflight --help
+Remove-Item Env:PYTHONIOENCODING
+```
+
+`tests/test_cli_help.py` 会在隔离子进程中用同一设置检查根命令和全部子命令，并严格解码 stdout/stderr；它还确认帮助调用不会在临时工作目录创建文件。
+
 ## CI 边界
 
-CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。打包 job 在测试成功后构建并分别安装 sdist/wheel 到干净虚拟环境；非 PR 运行只保留 7 天构建制品。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。
+CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。公开仓库旧 HEAD `9259a4d` 的首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 中，两个矩阵 job 已完成安装、pytest（以及 3.12 Ruff），但均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。打包 job 因 `needs: test` 被跳过，因此远程 sdist/wheel 尚未验证；本地制品验收不能替代该结果。
+
+当前 cp1252 help 修复仍未提交/推送；GitHub CLI 已认证。修复推送后应重跑两个矩阵 job，确认其通过后再确认 package job 的 sdist/wheel 安装验收。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。
