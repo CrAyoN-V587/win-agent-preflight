@@ -72,4 +72,14 @@ cli.py
 
 ## 未来扩展
 
-后续真实 probe 需要单独的最小工作区和清理策略；当前仍不联网、不调用模型，也不自动修改 Agent 配置。
+## 第四里程碑：workspace-probe
+
+`workspace-probe` 是与 `scan`/`snapshot` 独立的 `WorkspaceProbeReport v1`，用于回答一个窄问题：当前一次命令进程在指定 Windows 目录中，是否能完成最小的创建、写入、读取、重命名、删除和清理。结论只适用于这一次运行、这个目标目录和当前进程上下文，不能替宿主或其他 Agent 上下文作权限结论。
+
+探针记录创建目录和文件的 Windows `st_dev`/`st_ino` 身份，并在重命名、删除和移除目录前重新核对；身份不可用或变化时保守失败并报告残留。它采用非对抗的本地并发假设：Python 路径级 `unlink`/`rmdir` 无法把身份核对与删除合并为原子操作，因此不承诺抵御其他进程在二者之间刻意替换同名对象。首版不为这一安全场景引入 Win32 句柄级删除。
+
+命令必须同时提供 `--target PATH` 和显式 `--allow-write`。输入验证在任何写入前完成：仅 Windows、目标已存在且是普通目录、目标本身不是重解析点、`Path.resolve(strict=True)` 成功。探针只创建目标直接子目录 `.agent-preflight-probe-<uuid>`，其中独占创建 `before.txt`，重命名为 `after.txt`，最后删除已知文件和空目录。
+
+报告固定六项并保持顺序：`workspace.create_directory`、`workspace.write_file`、`workspace.read_file`、`workspace.rename_file`、`workspace.delete_file`、`workspace.cleanup`。`successful` 仅在六项均为 `pass` 且 `residual_paths` 为空时为真；残留只使用相对目标目录的本次已知路径。读取不一致不会阻止后续重命名/删除尝试；创建或写入失败时依赖步骤为 `unknown`。异常证据只保留类型、`winerror`（若有）和脱敏截断消息，不回显探针内容。
+
+清理不使用 `shutil.rmtree`，不遍历目标、不处理历史目录；清理前若探针目录是重解析点或状态不明则不进入，并以相对路径报告残留。普通能力失败退出 1，输入拒绝退出 2，Ctrl-C 尽力清理后由 CLI 输出部分报告并退出 130。该功能不联网、不提权、不修改 ACL、PATH、注册表、执行策略或 Agent 配置。

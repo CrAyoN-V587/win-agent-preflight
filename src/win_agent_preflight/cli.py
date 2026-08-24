@@ -9,7 +9,12 @@ import typer
 
 from .checks import scan_environment
 from .compare import render_compare_console, render_compare_json
-from .reporting import render_console, render_json
+from .reporting import (
+    render_console,
+    render_json,
+    render_workspace_probe_console,
+    render_workspace_probe_json,
+)
 from .snapshot import (
     SnapshotError,
     capture_snapshot,
@@ -18,6 +23,12 @@ from .snapshot import (
     write_snapshot,
 )
 from .windows import redact_text
+from .workspace_probe import (
+    WorkspaceProbeInputError,
+    WorkspaceProbeInterrupted,
+    WorkspaceProbeUnexpectedError,
+    run_workspace_probe,
+)
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -85,4 +96,49 @@ def compare(
         else render_compare_console(result)
     )
     if not result.equivalent:
+        raise typer.Exit(code=1)
+
+
+@app.command("workspace-probe")
+def workspace_probe(
+    target: Path = typer.Option(..., "--target", help="已存在的普通工作区目录"),
+    allow_write: bool = typer.Option(
+        False,
+        "--allow-write",
+        help="明确允许在 target 直接子目录中执行一次性探针",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="输出独立的 v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
+) -> None:
+    """验证当前 Windows 工作区的最小写入、重命名和清理能力。"""
+
+    if not allow_write:
+        typer.echo("workspace-probe error: --allow-write is required", err=True)
+        raise typer.Exit(code=2)
+    try:
+        report = run_workspace_probe(target, allow_write=allow_write)
+    except WorkspaceProbeInterrupted as exc:
+        report = exc.report
+        typer.echo(
+            render_workspace_probe_json(report, pretty=pretty)
+            if json_output
+            else render_workspace_probe_console(report)
+        )
+        raise typer.Exit(code=130) from exc
+    except WorkspaceProbeUnexpectedError as exc:
+        typer.echo(
+            render_workspace_probe_json(exc.report, pretty=pretty)
+            if json_output
+            else render_workspace_probe_console(exc.report)
+        )
+        raise typer.Exit(code=1) from exc
+    except (WorkspaceProbeInputError, OSError, ValueError) as exc:
+        typer.echo(f"workspace-probe error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_workspace_probe_json(report, pretty=pretty)
+        if json_output
+        else render_workspace_probe_console(report)
+    )
+    if not report.successful:
         raise typer.Exit(code=1)
