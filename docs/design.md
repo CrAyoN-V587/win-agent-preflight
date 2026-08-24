@@ -10,7 +10,7 @@
 cli.py
   ├─ checks.py（诊断分类与扫描编排）
   ├─ agent_doctor.py（AgentDoctorReport v1 与最小版本探针）
-  ├─ support_report.py（SupportReport v1 与离线组合采集）
+  ├─ support_report.py（SupportReport v2、离线组合采集与纯 next_checks 推导）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
        ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
@@ -84,13 +84,21 @@ cli.py
 
 每个 Agent 的状态固定为 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed` 或 `usable`。只有 `--version` 退出码为 0 且 stdout/stderr 至少有一条非空文本时才是 `usable`；成功结果保存脱敏后最多 200 字符的第一条非空版本行，空输出归类为 `version_probe_failed`。未发现命令不是失败，全部未安装时 CLI 退出 0；已发现但不可用时退出 1；输入错误退出 2。顶层报告固定含 `kind=agent_doctor` 与 `offline=true`。Runner 错误只输出 `error_type`、`winerror`、返回码和超时标记，不回显 stdout/stderr；路径按 `%USERPROFILE%` 脱敏。
 
-## 第七里程碑：support-report
+## 第七里程碑：support-report 采集边界
 
-`support-report` 是独立的 `SupportReport v1` 分享 envelope。它只接受 `--json`、`--pretty` 和 `--timeout`，默认输出 Console，不提供 `--output`。一次调用只创建一个共享 `Runner`、环境映射和超时：先运行默认 `codex`、`claude`、`dsh` 的 Agent Doctor（允许同一 Agent 的多候选回退，每个已发现候选最多一次），再把三个最终结果映射为既有 `CheckResult`，通过 `scan_environment(precomputed_commands=...)` 注入，避免 scan 再次执行这三个 Agent 的版本命令；不改变 standalone `scan` 的默认行为和 schema。
+`support-report` 的采集边界沿用独立的 SupportReport envelope。它只接受 `--json`、`--pretty` 和 `--timeout`，默认输出 Console，不提供 `--output`。一次调用只创建一个共享 `Runner`、环境映射和超时：先运行默认 `codex`、`claude`、`dsh` 的 Agent Doctor（允许同一 Agent 的多候选回退，每个已发现候选最多一次），再把三个最终结果映射为既有 `CheckResult`，通过 `scan_environment(precomputed_commands=...)` 注入，避免 scan 再次执行这三个 Agent 的版本命令；不改变 standalone `scan` 的默认行为和 schema。
 
-顶层字段固定为 `schema_version`、`tool`、`kind=support_report`、`generated_at`、有限 `environment`、`collection`、`scan`、`agent_doctor` 和 `errors`。environment 只保留 `platform`、`python_version`、`architecture`；collection 固定记录 `offline=true`、`workspace_probe_run=false`、`timeout_seconds` 和 `complete`。报告不保存主机名、cwd、`sys.executable`、完整 PATH 或环境变量值，也不运行 workspace-probe、login、doctor、npx、web、网络或写文件。
+顶层字段固定为 `schema_version=2`、`tool`、`kind=support_report`、`generated_at`、有限 `environment`、`collection`、`scan`、`agent_doctor`、`errors` 和 `next_checks`。environment 只保留 `platform`、`python_version`、`architecture`；collection 固定记录 `offline=true`、`workspace_probe_run=false`、`timeout_seconds` 和 `complete`。报告不保存主机名、cwd、`sys.executable`、完整 PATH 或环境变量值，也不运行 workspace-probe、login、doctor、npx、web、网络或写文件。
 
 健康异常仍属于采集成功：Agent 命令缺失或不可用由既有 warning/独立 Agent 状态表达，CLI 退出 0。只有部分采集抛出异常时记录脱敏、截断且不含 traceback/stdout/stderr 的 `errors`，保留另一部分结果并退出 1；输入错误退出 2。首版只组合证据，不给出行动建议。Console 复用 scan 和 Agent Doctor renderer，并固定输出分享前边界提醒。
+
+## 第八里程碑：SupportReport v2 next_checks
+
+外层 schema 升为 `2`，固定保留采集阶段的 v1 字段并增加 `next_checks` 数组；内嵌 `scan` 和 `agent_doctor` 始终为 v1，不维护 v1/v2 双 flag 或兼容分支。`NextCheck` 是不可变模型，字段固定为 `code`、`source`、`target`、`observed`、`summary`、`manual_commands`。
+
+`derive_next_checks(scan, doctor)` 是纯函数，只读取已有 `ScanReport` 与 `AgentDoctorReport`，不解析自由文本、不调用 Runner、不运行命令、不读取环境。触发顺序固定为：Agent `access_denied`（按 `codex`、`claude`、`dsh`）、Agent `version_probe_failed`（同顺序）、PowerShell 裸 `npm` warning、PATH refresh warning、PATH refresh unknown。每个 `(code, target)` 只保留一项。
+
+允许的 Agent 建议为 `agent.launcher_access_denied` 和 `agent.version_probe_failed`：前者的 `manual_commands` 为 `Get-Command <agent> -All` 与 `<agent> --version`，后者只包含 `<agent> --version`；允许的 npm 建议为 `powershell.npm_bare_command_failed`，命令为 `Get-Command npm -All` 与 `npm.cmd --version`。PATH 建议分别为 `windows.path_refresh_pending`/`windows.path_refresh_unknown`，且 `manual_commands` 只包含 `agent-preflight scan --json --pretty`；摘要明确提示重开终端并使用标准 Windows PowerShell。`command_not_found`、`resolved_but_not_executable`、`usable` 以及 scan 中注入的 Agent checks 不产生建议。Console 显示 next checks；没有时输出 `Next checks: none.`。
 
 ## 第四里程碑：workspace-probe
 

@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：第七里程碑 `support-report` 已实现、复审并提交为 `10dc7a6`，待推送与首次 GitHub runner 执行。
+- 当前阶段：第八里程碑 `SupportReport v2` 已实现，待提交；前七个里程碑已提交，待推送与首次 GitHub runner 执行。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
-- 最近验证：第七里程碑全量 104 项测试和 Ruff 通过；最新源码生成 1 个 sdist 与 1 个 wheel，并分别在两个全新 Python 3.12 虚拟环境安装，`support-report --help` 均启动成功；真实 Support Report JSON 退出 0，未运行 workspace-probe。不能据此声称 GitHub CI 或 Python 3.14 已运行。
-- 未完成项：第七里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
-- 下一步：恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
+- 最近验证：第八里程碑新增 `next_checks` 纯推导、v2 schema、触发边界和 Console/JSON 测试；全量 113 项测试与 Ruff 通过。真实 v2 Support Report JSON 退出 0，顶层 schema 为 2，内嵌 scan/Agent Doctor 为 v1；不能据此声称 GitHub CI 或 Python 3.14 已运行。
+- 未完成项：第八里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
+- 下一步：完成第八里程碑审阅并提交；恢复 GitHub CLI 认证并推送。
 
 本机建议安装环境（基于当前验证）：
 
@@ -100,7 +100,7 @@
 
 ## 阶段 7：Support Report 离线组合报告
 
-状态：实现、全量测试和真实 JSON 完成，待提交
+状态：实现、全量测试和真实 JSON 完成，已提交
 
 - [x] 新增独立 `SupportReport v1`，固定 `kind=support_report`、`generated_at`、有限 environment、collection、scan、agent_doctor 和 errors 字段。
 - [x] `support-report` 共享同一个 Runner/env/timeout，先执行 Agent Doctor，再将 `codex`、`claude`、`dsh` 最终结果作为预计算 `CheckResult` 注入 scan；多候选回退由 Agent Doctor 完成，每个已发现候选最多一次，scan 不再重复探测三个 Agent。
@@ -109,12 +109,23 @@
 - [x] 健康异常保持退出 0；部分采集异常保留另一部分结果、记录脱敏截断错误并退出 1；输入错误退出 2。
 - [x] 全量 pytest（104 项）、Ruff、diff check 和真实 `support-report --json --pretty --timeout 1` 完成。
 
+## 阶段 8：SupportReport v2 next_checks
+
+状态：实现、全量测试完成，待提交
+
+- [x] 外层 SupportReport schema 升为 v2，固定保留 v1 采集字段；内嵌 scan/Agent Doctor 仍为 v1，不维护双版本 flag。
+- [x] 新增不可变 `NextCheck` 与纯 `derive_next_checks(scan, doctor)`；不运行命令、不读取环境、不解析自由文本。
+- [x] 仅允许 Agent `access_denied`/`version_probe_failed`、PowerShell 裸 npm warning、PATH refresh warning/unknown 触发；明确忽略缺失、不可执行、可用和注入的 Agent scan checks。
+- [x] 固定优先级、codex/claude/dsh 顺序和 `(code, target)` 去重；Console 显示 next checks 或 `Next checks: none.`。
+- [x] 覆盖所有触发、不触发、去重、summary/evidence 无关性、纯函数零调用、v2/子报告 schema、JSON 和 Console。
+- [x] 全量 pytest（113 项）、Ruff、diff check 和真实 `support-report --json --pretty --timeout 1` 完成；JSON 顶层 schema 为 2，子报告仍为 v1。
+
 ## 暂停检查点
 
-- 当前阶段：第七里程碑 `support-report` 实现、全量验证和独立复审完成，已提交 `10dc7a6`；GitHub runner 尚未执行。
-- 最近验证：104 项测试与 Ruff 通过；build 1.5.0 构建 sdist/wheel 各 1 个；两个干净 Python 3.12 环境安装并启动 CLI 成功；真实 Support Report JSON 已输出 `offline=true`、`workspace_probe_run=false`。多候选回退及 scan 不重复由自动化测试验证，真实命令记录不声称列出候选调用次数。
-- 未完成项：GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步：恢复 GitHub 认证后创建/更新远程并推送。
+- 当前阶段：第八里程碑 `SupportReport v2` 实现和全量验证完成，待主 Agent 审阅/提交；GitHub runner 尚未执行。
+- 最近验证：113 项测试与 Ruff 通过；前七里程碑 build 1.5.0 构建 sdist/wheel 各 1 个并完成两个干净 Python 3.12 环境安装；真实 v2 Support Report JSON 退出 0，内嵌 scan/Agent Doctor 为 v1。本次多候选回退、scan 不重复和 next_checks 纯推导由自动化测试验证。
+- 未完成项：第八里程碑提交、GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步：主 Agent 审阅并提交第八里程碑，再恢复 GitHub 认证后创建/更新远程并推送。
 - 恢复命令：
 
 ```powershell
@@ -154,6 +165,8 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 | 2026-08-24 | 第七里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 104 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | Support Report 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；JSON 可解析；`offline=true`、`workspace_probe_run=false`；未运行 workspace-probe |
 | 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；沙箱中暴露的真实失败为 PyPI 网络权限 |
+| 2026-08-24 | 第八里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 113 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
+| 2026-08-24 | SupportReport v2 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；顶层 `schema_version=2`、`kind=support_report`；内嵌 scan/Agent Doctor 为 v1；`offline=true`、`workspace_probe_run=false`；本次推导 1 项 next check |
 
 ## 下一里程碑验收
 

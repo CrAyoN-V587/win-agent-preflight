@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from win_agent_preflight import cli
@@ -12,12 +14,14 @@ from win_agent_preflight.agent_doctor import (
     AgentDoctorResult,
     AgentDoctorState,
 )
-from win_agent_preflight.models import ScanReport
+from win_agent_preflight.models import CheckResult, CheckStatus, ScanReport
 from win_agent_preflight.reporting import render_support_report_console
 from win_agent_preflight.runner import CommandExecution, Runner
 from win_agent_preflight.support_report import (
+    NextCheck,
     SupportReport,
     SupportReportInputError,
+    derive_next_checks,
     run_support_report,
 )
 
@@ -26,9 +30,11 @@ def _touch(path: Path) -> None:
     path.write_text("launcher", encoding="utf-8")
 
 
-def _report(*, errors: tuple[str, ...] = ()) -> SupportReport:
+def _report(
+    *, errors: tuple[str, ...] = (), next_checks: tuple[NextCheck, ...] = ()
+) -> SupportReport:
     return SupportReport(
-        schema_version=1,
+        schema_version=2,
         tool="win-agent-preflight",
         generated_at="2026-08-24T04:30:00+00:00",
         environment={"platform": "Windows", "python_version": "3.12.7", "architecture": "AMD64"},
@@ -45,6 +51,7 @@ def _report(*, errors: tuple[str, ...] = ()) -> SupportReport:
             agents=(),
         ),
         errors=errors,
+        next_checks=next_checks,
     )
 
 
@@ -87,7 +94,7 @@ def test_support_report_reuses_agent_results_in_scan(tmp_path: Path) -> None:
     )
 
     payload = report.to_dict()
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["kind"] == "support_report"
     assert payload["generated_at"] == "2026-08-24T04:30:00+00:00"
     assert set(payload["environment"]) == {"platform", "python_version", "architecture"}
@@ -138,6 +145,354 @@ def test_support_report_allows_agent_multi_candidate_fallback(tmp_path: Path) ->
     codex_check = next(check for check in report.scan.checks if check.id == "command.codex")
     assert codex_check.status.value == "pass"
     assert codex_check.details["agent_doctor_state"] == "usable"
+
+
+def test_derive_next_checks_has_fixed_priority_and_agent_order() -> None:
+    doctor = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="dsh",
+                command="dsh",
+                state=AgentDoctorState.VERSION_PROBE_FAILED,
+                summary="ignored summary",
+            ),
+            AgentDoctorResult(
+                agent="claude",
+                command="claude",
+                state=AgentDoctorState.VERSION_PROBE_FAILED,
+                summary="another summary",
+            ),
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="not parsed",
+            ),
+        ),
+    )
+    scan = ScanReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        checks=(
+            CheckResult(
+                id="windows.path_refresh",
+                status=CheckStatus.WARNING,
+                summary="arbitrary summary",
+                evidence=("arbitrary evidence",),
+            ),
+            CheckResult(
+                id="powershell.command.npm",
+                status=CheckStatus.WARNING,
+                summary="arbitrary npm summary",
+            ),
+        ),
+    )
+
+    result = derive_next_checks(scan, doctor)
+
+    assert [(item.code, item.target, item.observed) for item in result] == [
+        ("agent.launcher_access_denied", "codex", "access_denied"),
+        ("agent.version_probe_failed", "claude", "version_probe_failed"),
+        ("agent.version_probe_failed", "dsh", "version_probe_failed"),
+        ("powershell.npm_bare_command_failed", "npm", "warning"),
+        ("windows.path_refresh_pending", "PATH", "warning"),
+    ]
+    assert result[0].manual_commands == (
+        "Get-Command codex -All",
+        "codex --version",
+    )
+    assert "重开终端" in result[-1].summary
+    assert "标准 Windows PowerShell" in result[-1].summary
+
+
+def test_derive_next_checks_uses_state_specific_agent_commands() -> None:
+    doctor = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="denied",
+            ),
+            AgentDoctorResult(
+                agent="claude",
+                command="claude",
+                state=AgentDoctorState.VERSION_PROBE_FAILED,
+                summary="failed",
+            ),
+            AgentDoctorResult(
+                agent="dsh",
+                command="dsh",
+                state=AgentDoctorState.VERSION_PROBE_FAILED,
+                summary="failed",
+            ),
+        ),
+    )
+
+    result = derive_next_checks(
+        ScanReport(schema_version=1, tool="win-agent-preflight", checks=()),
+        doctor,
+    )
+    by_target = {item.target: item for item in result}
+
+    assert by_target["codex"].manual_commands == (
+        "Get-Command codex -All",
+        "codex --version",
+    )
+    assert by_target["claude"].manual_commands == ("claude --version",)
+    assert by_target["dsh"].manual_commands == ("dsh --version",)
+
+
+def test_derive_next_checks_ignores_non_actionable_and_injected_agent_checks() -> None:
+    doctor = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.COMMAND_NOT_FOUND,
+                summary="missing",
+            ),
+            AgentDoctorResult(
+                agent="claude",
+                command="claude",
+                state=AgentDoctorState.RESOLVED_BUT_NOT_EXECUTABLE,
+                summary="not executable",
+            ),
+            AgentDoctorResult(
+                agent="dsh",
+                command="dsh",
+                state=AgentDoctorState.USABLE,
+                summary="usable",
+            ),
+        ),
+    )
+    scan = ScanReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        checks=tuple(
+            CheckResult(
+                id=check_id,
+                status=CheckStatus.WARNING,
+                summary="agent check should not produce advice",
+            )
+            for check_id in ("command.codex", "command.claude", "command.dsh")
+        )
+        + (
+            CheckResult(
+                id="powershell.command.npm",
+                status=CheckStatus.PASS,
+                summary="ok",
+            ),
+            CheckResult(
+                id="windows.path_refresh",
+                status=CheckStatus.PASS,
+                summary="ok",
+            ),
+        ),
+    )
+
+    assert derive_next_checks(scan, doctor) == ()
+
+
+def test_derive_next_checks_reports_path_unknown_with_one_manual_command() -> None:
+    scan = ScanReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        checks=(
+            CheckResult(
+                id="windows.path_refresh",
+                status=CheckStatus.UNKNOWN,
+                summary="text is not parsed",
+                evidence=("not parsed",),
+            ),
+        ),
+    )
+
+    result = derive_next_checks(
+        scan,
+        AgentDoctorReport(schema_version=1, tool="win-agent-preflight", agents=()),
+    )
+
+    assert [(item.code, item.target, item.observed) for item in result] == [
+        ("windows.path_refresh_unknown", "PATH", "unknown")
+    ]
+    assert result[0].manual_commands == ("agent-preflight scan --json --pretty",)
+
+
+def test_derive_next_checks_deduplicates_same_code_and_target() -> None:
+    doctor = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="first",
+            ),
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="second",
+            ),
+        ),
+    )
+    warning = CheckResult(
+        id="powershell.command.npm", status=CheckStatus.WARNING, summary="first"
+    )
+    warning_again = CheckResult(
+        id="powershell.command.npm", status=CheckStatus.WARNING, summary="second"
+    )
+    path_warning = CheckResult(
+        id="windows.path_refresh", status=CheckStatus.WARNING, summary="first"
+    )
+    path_warning_again = CheckResult(
+        id="windows.path_refresh", status=CheckStatus.WARNING, summary="second"
+    )
+    scan = ScanReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        checks=(warning, warning_again, path_warning, path_warning_again),
+    )
+
+    result = derive_next_checks(scan, doctor)
+
+    assert [(item.code, item.target) for item in result] == [
+        ("agent.launcher_access_denied", "codex"),
+        ("powershell.npm_bare_command_failed", "npm"),
+        ("windows.path_refresh_pending", "PATH"),
+    ]
+
+
+def test_derive_next_checks_is_pure(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "win_agent_preflight.support_report.run_agent_doctor",
+        lambda **kwargs: calls.append("agent") or None,
+    )
+    monkeypatch.setattr(
+        "win_agent_preflight.support_report.scan_environment",
+        lambda **kwargs: calls.append("scan") or None,
+    )
+
+    derive_next_checks(
+        ScanReport(schema_version=1, tool="win-agent-preflight", checks=()),
+        AgentDoctorReport(schema_version=1, tool="win-agent-preflight", agents=()),
+    )
+
+    assert calls == []
+
+
+def test_support_report_v2_preserves_v1_children_and_next_checks(monkeypatch) -> None:
+    doctor = AgentDoctorReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        agents=(
+            AgentDoctorResult(
+                agent="codex",
+                command="codex",
+                state=AgentDoctorState.ACCESS_DENIED,
+                summary="denied",
+            ),
+        ),
+    )
+    scan = ScanReport(
+        schema_version=1,
+        tool="win-agent-preflight",
+        checks=(
+            CheckResult(
+                id="powershell.command.npm",
+                status=CheckStatus.WARNING,
+                summary="npm failed",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "win_agent_preflight.support_report.run_agent_doctor",
+        lambda **kwargs: doctor,
+    )
+    monkeypatch.setattr(
+        "win_agent_preflight.support_report.scan_environment",
+        lambda **kwargs: scan,
+    )
+
+    payload = run_support_report(clock=lambda: "fixed").to_dict()
+
+    assert payload["schema_version"] == 2
+    assert payload["scan"]["schema_version"] == 1
+    assert payload["agent_doctor"]["schema_version"] == 1
+    assert [item["code"] for item in payload["next_checks"]] == [
+        "agent.launcher_access_denied",
+        "powershell.npm_bare_command_failed",
+    ]
+    assert set(payload) == {
+        "schema_version",
+        "tool",
+        "kind",
+        "generated_at",
+        "environment",
+        "collection",
+        "scan",
+        "agent_doctor",
+        "errors",
+        "next_checks",
+    }
+
+
+def test_next_check_and_support_report_are_immutable_and_v2_only() -> None:
+    item = NextCheck(
+        code="test.code",
+        source="test",
+        target="target",
+        observed="warning",
+        summary="summary",
+        manual_commands=["command"],  # type: ignore[arg-type]
+    )
+    assert item.manual_commands == ("command",)
+    with pytest.raises(FrozenInstanceError):
+        item.code = "changed"  # type: ignore[misc]
+    with pytest.raises(ValueError, match="schema_version must be 2"):
+        SupportReport(
+            schema_version=1,
+            tool="win-agent-preflight",
+            generated_at="fixed",
+            environment={},
+            collection={},
+            scan=ScanReport(schema_version=1, tool="win-agent-preflight", checks=()),
+            agent_doctor=AgentDoctorReport(
+                schema_version=1,
+                tool="win-agent-preflight",
+                agents=(),
+            ),
+        )
+
+
+def test_support_report_console_lists_next_checks() -> None:
+    rendered = render_support_report_console(
+        _report(
+            next_checks=(
+                NextCheck(
+                    code="agent.version_probe_failed",
+                    source="agent_doctor",
+                    target="codex",
+                    observed="version_probe_failed",
+                    summary="codex version probe failed",
+                    manual_commands=("codex --version",),
+                ),
+            )
+        )
+    )
+
+    assert "Next checks:" in rendered
+    assert "agent.version_probe_failed" in rendered
+    assert "$ codex --version" in rendered
 
 
 def test_support_report_preserves_scan_when_agent_collection_fails(monkeypatch) -> None:
@@ -246,6 +601,7 @@ def test_support_report_console_lists_finite_facts_and_share_reminder() -> None:
 
     assert "platform: Windows" in rendered
     assert "workspace_probe_run=false" in rendered
+    assert "Next checks: none." in rendered
     assert "主机名" in rendered
     assert "cwd" in rendered
     assert "sys.executable" in rendered
@@ -259,6 +615,7 @@ def test_support_report_cli_json_exit_codes(monkeypatch) -> None:
     assert healthy.exit_code == 0
     payload = json.loads(healthy.stdout)
     assert payload["kind"] == "support_report"
+    assert payload["schema_version"] == 2
     assert payload["collection"]["offline"] is True
 
     monkeypatch.setattr(cli, "run_support_report", lambda **kwargs: _report(errors=("failed",)))

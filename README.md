@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-当前版本已完成第七个可运行里程碑的本地实现与验证（待提交和首次 CI），提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
+当前版本已完成第八个可运行里程碑的本地实现与验证（待提交和首次 CI），提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -19,6 +19,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 - 在显式授权下验证当前 Windows 进程对指定目录的创建、写入、读取、重命名、删除和清理能力；
 - 对 PATH 中已解析的 Codex、Claude Code、DeepSeek Harness 候选启动器执行有界的 `--version` 探测，输出独立 Agent 状态报告；
 - 先复用 Agent Doctor 结果，再生成不让 scan 重复探测三个 Agent 的离线支持报告；
+- 从已有 scan/Agent Doctor 事实纯推导有限的 `next_checks`，不在建议阶段运行命令或读取环境；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
 真实 Agent 宿主终端快照仍需在各上下文中分别采集，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
@@ -72,7 +73,7 @@ py -3.12 -m build --sdist --wheel
 
 上面的 `warning`/`fail` 语义仅适用于 `scan` 的 `CheckResult`：可选 Agent 未安装会显示为 `warning`，不是 `fail`。`agent-doctor` 使用独立报告，未发现命令明确记录为 `command_not_found`，按约定退出 0；`scan` 的 `fail` 结果必须携带证据，无法判断时使用 `unknown`。
 
-`support-report` 默认输出 Console，`--json` 输出独立 `SupportReport v1`，不提供 `--output`。它在同一个 Runner、环境映射和超时下先执行 Agent Doctor；Agent Doctor 可依次探测同一 Agent 的多个候选，随后把三个 Agent 的最终结果注入 `scan`，因此 scan 不会再次执行这三个 Agent 的版本命令。报告只保留 `platform`、Python 版本和架构等有限环境事实，标记 `offline=true`、`workspace_probe_run=false`，不运行 workspace-probe、login、doctor、npx、web、网络或写文件；不会自动给出行动建议。采集完整退出 0，部分采集失败退出 1，输入错误退出 2。分享前请检查报告边界提醒。
+`support-report` 默认输出 Console，`--json` 输出独立 `SupportReport v2`，不提供 `--output`。它在同一个 Runner、环境映射和超时下先执行 Agent Doctor；Agent Doctor 可依次探测同一 Agent 的多个候选，随后把三个 Agent 的最终结果注入 `scan`，因此 scan 不会再次执行这三个 Agent 的版本命令。顶层保留 v1 的 `scan`/`agent_doctor` 等字段，并增加固定 `next_checks` 数组；内嵌两个报告仍为 v1。`next_checks` 是纯模型推导，只允许 Agent `access_denied`/`version_probe_failed`、PowerShell 裸 `npm` warning、PATH refresh warning/unknown 四类触发；不为命令缺失、不可执行、可用或 Agent scan 注入检查生成建议。报告只保留 `platform`、Python 版本和架构等有限环境事实，标记 `offline=true`、`workspace_probe_run=false`，不运行 workspace-probe、login、doctor、npx、web、网络或写文件。采集完整退出 0，部分采集失败退出 1，输入错误退出 2。Console 会显示 next checks 或 `Next checks: none.`，分享前请检查报告边界提醒。
 
 `windows.path_refresh` 只在 Windows 上读取 `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment` 和 `HKCU\Environment` 的 `Path`。读取是只读的，不修改注册表、PATH 或执行策略。缺失键/值视为空的完整事实；读取异常、类型错误或未解析变量会报告为 `unknown`，但如果另一 scope 已证明存在未继承目录，结果仍为 `warning`。旧的 `user_path` 参数仍可用于测试注入。
 

@@ -93,7 +93,7 @@ def render_agent_doctor_console(report: AgentDoctorReport) -> str:
 
 
 def render_support_report_json(report: SupportReport, *, pretty: bool = False) -> str:
-    """Render the bounded support-report v1 schema."""
+    """Render the bounded support-report v2 schema."""
 
     return json.dumps(
         report.to_dict(),
@@ -119,6 +119,16 @@ def render_support_report_console(report: SupportReport) -> str:
     lines.extend(
         ("", render_console(report.scan), "", render_agent_doctor_console(report.agent_doctor))
     )
+    if report.next_checks:
+        lines.extend(("", "Next checks:"))
+        for item in report.next_checks:
+            lines.append(
+                f"  - {item.code} [{item.source}/{item.target}; observed={item.observed}]: "
+                f"{item.summary}"
+            )
+            lines.extend(f"    $ {command}" for command in item.manual_commands)
+    else:
+        lines.extend(("", "Next checks: none."))
     if report.errors:
         lines.extend(("", "Errors:"))
         lines.extend(f"  - {error}" for error in report.errors)

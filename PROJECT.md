@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第七里程碑 `support-report` 已提交，待远程推送和首次 CI）
+状态：进行中（第八里程碑 `SupportReport v2` 已实现，待提交；前七个里程碑待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第七里程碑——组合离线支持报告，复用 Agent Doctor 结果并避免 scan 重复探测三个 Agent。
+当前阶段：第八里程碑——在 SupportReport v2 中增加纯 `next_checks` 推导，不改变既有采集边界。
 
-下一步：恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：完成第八里程碑审阅并提交；恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
-最近验证：第七里程碑 104 项测试、Ruff 和真实 `support-report --json` 已通过；最新源码已重新构建 sdist/wheel，并分别在两个全新 Python 3.12 环境安装，`support-report --help` 均启动成功。真实支持报告保留当前 Codex WindowsApps `access_denied` 与 Claude/DSH `command_not_found`，且未运行 workspace-probe；GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
+最近验证：第八里程碑 113 项测试、Ruff、真实 v2 `support-report --json --pretty --timeout 1` 和 diff check 已通过；JSON 顶层 schema 为 2，内嵌 scan/Agent Doctor 仍为 v1。GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -43,7 +43,7 @@
 - 显式 `--target PATH --allow-write` 的 Windows 工作区写入、读取、重命名、删除和清理能力探针；结论只适用于本次命令、目标目录和当前进程上下文。
 - Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、`RUNNER_TEMP` workspace-probe 和 Python 3.12 的 sdist/wheel 干净环境安装验收。
 - 独立 `agent-doctor`：默认/重复 `--agent` 选择、PATH 中多类 launcher 解析、同一 Agent 多候选回退、每个候选最多一次 `--version` 探针和脱敏状态报告。
-- 独立 `support-report`：固定 v1 组合 envelope、有限环境事实、Agent Doctor 结果复用、scan 预计算注入和脱敏采集错误。
+- 独立 `support-report`：固定 v2 组合 envelope、有限环境事实、Agent Doctor 结果复用、scan 预计算注入、纯 `next_checks` 推导和脱敏采集错误。
 
 不包含：
 
@@ -55,6 +55,7 @@
 - PyPI/Release 自动发布、签名、SBOM、Actions 缓存和跨平台 CI/制品。
 - `agent-doctor` 不执行 login、doctor、npx、网页或网络调用，不改变既有 scan/snapshot/workspace schema。
 - `support-report` 不执行 workspace-probe、login、doctor、npx、web、网络或写文件，不提供自动行动建议；仅组合已有本地报告。
+- `next_checks` 只由既有 scan/Agent Doctor 模型触发，不解析自由文本、不运行命令、不读取环境；仅覆盖明确的 Agent launcher/version、PowerShell npm 和 PATH refresh 场景。
 
 ## 成功标准
 
@@ -71,6 +72,7 @@
 - [ ] GitHub 首次 CI 在 Python 3.12/3.14 均通过；3.14 仍待实际 runner 验证。
 - [x] `agent-doctor` 全量回归测试、Ruff 和真实 CLI 验收通过；当前真实上下文结果为 Codex `access_denied`、Claude/DSH `command_not_found`。
 - [x] `support-report` 复用共享 Runner/env/timeout；Agent Doctor 每个已发现候选最多执行一次，scan 不重复探测三个 Agent；Console/JSON 和部分失败退出语义有测试。
+- [x] `SupportReport v2` 保留 v1 顶层字段并增加不可变 `next_checks`；固定优先级/Agent 顺序、去重、触发边界和 Console/JSON 展示均有测试。
 
 ## 计划
 
@@ -83,6 +85,7 @@
 - [ ] 7. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
 - [x] 8. 增加独立 `agent-doctor` 版本探针和结构化状态报告；发布仍保持显式、手动边界。
 - [x] 9. 增加离线 `support-report` 组合报告；不增加 workspace-probe、网络或自动修复流程。
+- [x] 10. 将 `support-report` 升级为 v2，增加纯 `next_checks` 推导；不维护双版本或执行自动建议。
 
 ## 技术和环境
 
@@ -95,7 +98,7 @@
 - 针对性验证命令：`python -B -m pytest -q -p no:cacheprovider`
 - 完整验证命令：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 
-本机建议安装环境（基于当前验证和第七里程碑）：
+本机建议安装环境（基于当前验证和第八里程碑）：
 
 - 必须：已验证的 Python 3.12.7、本项目开发依赖和 Git。
 - 明显提效：并行安装 Python 3.14；本机 Python Launcher 已可用，可用 `py -3.12`/`py -3.14` 选择解释器；GitHub CLI 重新认证后用于远程仓库工作流；PowerShell 7 已可用。
@@ -117,6 +120,7 @@
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
 - Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收配置。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
+- 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现与测试已完成，尚未提交。
 
 当前阻塞：
 
@@ -124,7 +128,7 @@
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
 - 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
 - 第六里程碑已完成设计、实现、两轮边界修正和独立复审，并提交为 `f7e3503`；尚待推送。
-- 第七里程碑 `support-report` 已完成实现、边界修正和独立复审，并提交为 `10dc7a6`；尚待推送。
+- 第七里程碑 `support-report` 已完成实现、边界修正和独立复审，并已提交；第八里程碑 v2 尚未提交。
 
 下一步：
 
@@ -134,7 +138,7 @@
 
 未提交修改：
 
-- 无；本次状态文档提交后应保持工作区干净。
+- 第八里程碑的 `SupportReport v2`、`NextCheck`、纯推导测试和文档；完成审阅后提交。
 
 ## 关键决策
 
@@ -156,7 +160,7 @@
 | Agent Doctor 使用独立 v1 状态 | Agent 启动器的“未发现”和“已发现但不可用”不应改变 scan/snapshot/workspace 的既有 schema/退出语义 | 2026-08-24 |
 | Agent Doctor 只探测已解析 launcher 的 `--version` | 保持本地、低副作用和可复验边界，不触发 login、doctor、npx、网络或网页流程 | 2026-08-24 |
 | Agent Doctor 保留 lstat/Runner 结构化错误 | WindowsApps alias 和权限异常不能被静默降级为 command_not_found；失败证据不回显 stdout/stderr | 2026-08-24 |
-| SupportReport v1 只组合本地结果 | 避免分享报告触发写入、联网、登录或重复 Agent 探针 | 2026-08-24 |
+| SupportReport v2 只组合本地结果并纯推导 next_checks | 避免分享报告触发写入、联网、登录、重复 Agent 探针或隐式自动修复 | 2026-08-24 |
 
 ## 验证证据
 
@@ -181,15 +185,17 @@
 | 2026-08-24 | 第七里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 104 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | Support Report 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；JSON 可解析；`offline=true`、`workspace_probe_run=false`；多候选回退由 Agent Doctor 负责，scan 不重复探测三个 Agent（候选调用由测试验证） |
 | 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；首次沙箱构建的真实阻塞为 PyPI 网络权限，不是源码或构建后端错误 |
+| 2026-08-24 | 第八里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 113 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
+| 2026-08-24 | SupportReport v2 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；顶层 `schema_version=2`、`kind=support_report`；内嵌 scan/Agent Doctor 为 v1；`offline=true`、`workspace_probe_run=false`；本次推导 1 项 next check |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第七里程碑 `10dc7a6`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第七里程碑及其文档提交；第八里程碑尚未提交，本次状态文档更新后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
-- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`py -3.12 -m build --sdist --wheel`；`agent-preflight scan --json`；`agent-preflight agent-doctor --json --pretty`；`agent-preflight support-report --json --pretty`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
+- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`py -3.12 -m build --sdist --wheel`；`agent-preflight scan --json`；`agent-preflight agent-doctor --json --pretty`；`agent-preflight support-report --json --pretty --timeout 1`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
 
 ## 已知限制和后续
 

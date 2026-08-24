@@ -32,8 +32,33 @@ _MAX_ERROR_MESSAGE = 240
 
 
 @dataclass(frozen=True, slots=True)
+class NextCheck:
+    """One deterministic, manual follow-up derived from existing reports."""
+
+    code: str
+    source: str
+    target: str
+    observed: str
+    summary: str
+    manual_commands: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "manual_commands", tuple(self.manual_commands))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "source": self.source,
+            "target": self.target,
+            "observed": self.observed,
+            "summary": self.summary,
+            "manual_commands": list(self.manual_commands),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SupportReport:
-    """Stable v1 envelope for a local, offline support handoff."""
+    """Stable v2 envelope for a local, offline support handoff."""
 
     schema_version: int
     tool: str
@@ -43,6 +68,17 @@ class SupportReport:
     scan: ScanReport
     agent_doctor: AgentDoctorReport
     errors: tuple[str, ...] = ()
+    next_checks: tuple[NextCheck, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.schema_version != 2:
+            raise ValueError("SupportReport schema_version must be 2")
+        if self.scan.schema_version != 1:
+            raise ValueError("SupportReport scan schema_version must be 1")
+        if self.agent_doctor.schema_version != 1:
+            raise ValueError("SupportReport agent_doctor schema_version must be 1")
+        object.__setattr__(self, "errors", tuple(self.errors))
+        object.__setattr__(self, "next_checks", tuple(self.next_checks))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,7 +91,110 @@ class SupportReport:
             "scan": self.scan.to_dict(),
             "agent_doctor": self.agent_doctor.to_dict(),
             "errors": list(self.errors),
+            "next_checks": [item.to_dict() for item in self.next_checks],
         }
+
+
+def derive_next_checks(
+    scan: ScanReport,
+    doctor: AgentDoctorReport,
+) -> tuple[NextCheck, ...]:
+    """Derive bounded manual follow-ups without calling tools or reading state."""
+
+    derived: list[NextCheck] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(item: NextCheck) -> None:
+        key = (item.code, item.target)
+        if key not in seen:
+            seen.add(key)
+            derived.append(item)
+
+    results: dict[str, AgentDoctorResult] = {}
+    for result in doctor.agents:
+        results.setdefault(result.agent.casefold(), result)
+
+    agent_rules = (
+        (
+            AgentDoctorState.ACCESS_DENIED,
+            "agent.launcher_access_denied",
+            "启动器访问被拒绝",
+            ("Get-Command {agent} -All", "{agent} --version"),
+        ),
+        (
+            AgentDoctorState.VERSION_PROBE_FAILED,
+            "agent.version_probe_failed",
+            "版本探针失败",
+            ("{agent} --version",),
+        ),
+    )
+    for state, code, label, command_templates in agent_rules:
+        for agent in DEFAULT_AGENTS:
+            result = results.get(agent)
+            if result is None or result.state != state:
+                continue
+            add(
+                NextCheck(
+                    code=code,
+                    source="agent_doctor",
+                    target=agent,
+                    observed=state.value,
+                    summary=f"{agent} {label}；请在标准 Windows PowerShell 中复现。",
+                    manual_commands=tuple(
+                        template.format(agent=agent) for template in command_templates
+                    ),
+                )
+            )
+
+    npm_warning = any(
+        check.id == "powershell.command.npm" and check.status == CheckStatus.WARNING
+        for check in scan.checks
+    )
+    if npm_warning:
+        add(
+            NextCheck(
+                code="powershell.npm_bare_command_failed",
+                source="scan",
+                target="npm",
+                observed=CheckStatus.WARNING.value,
+                summary="PowerShell 裸 npm 命令失败；请在标准 Windows PowerShell 中复现。",
+                manual_commands=("Get-Command npm -All", "npm.cmd --version"),
+            )
+        )
+
+    path_warning = any(
+        check.id == "windows.path_refresh" and check.status == CheckStatus.WARNING
+        for check in scan.checks
+    )
+    path_unknown = any(
+        check.id == "windows.path_refresh" and check.status == CheckStatus.UNKNOWN
+        for check in scan.checks
+    )
+    if path_warning:
+        add(
+            NextCheck(
+                code="windows.path_refresh_pending",
+                source="scan",
+                target="PATH",
+                observed=CheckStatus.WARNING.value,
+                summary="PATH 可能尚未刷新；请重开终端，并在标准 Windows PowerShell 中复现。",
+                manual_commands=("agent-preflight scan --json --pretty",),
+            )
+        )
+    elif path_unknown:
+        add(
+            NextCheck(
+                code="windows.path_refresh_unknown",
+                source="scan",
+                target="PATH",
+                observed=CheckStatus.UNKNOWN.value,
+                summary=(
+                    "无法确认 PATH 是否已刷新；请重开终端，并在标准 Windows PowerShell 中复现。"
+                ),
+                manual_commands=("agent-preflight scan --json --pretty",),
+            )
+        )
+    return tuple(derived)
 
 
 def run_support_report(
@@ -107,7 +246,7 @@ def run_support_report(
         scan = ScanReport(schema_version=1, tool="win-agent-preflight", checks=())
 
     return SupportReport(
-        schema_version=1,
+        schema_version=2,
         tool="win-agent-preflight",
         generated_at=_generated_at(clock),
         environment=_environment_facts(),
@@ -120,6 +259,7 @@ def run_support_report(
         scan=scan,
         agent_doctor=agent_doctor,
         errors=tuple(errors),
+        next_checks=derive_next_checks(scan, agent_doctor),
     )
 
 
