@@ -2,17 +2,17 @@
 
 ## 当前快照
 
-- 当前阶段：第四里程碑已通过独立审阅并提交为 `623ef26`，等待推送。
-- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断和独立 `workspace-probe` 已实现。
-- 最近验证：完整 75 项测试通过（48 个既有测试与 27 个 workspace-probe 测试），Ruff 通过；项目根在当前 Codex 沙箱中按预期因 WinError 5 退出 1 且无残留，真实 `%TEMP%` probe 六项 pass、`successful=true`、`residual_paths=[]`。
-- 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照、远程提交/推送、Agent 原生 Doctor 适配器、Windows CI。
-- 下一步唯一动作：创建/更新 GitHub 远程并推送；用户再在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 检查真实差异。
+- 当前阶段：第五里程碑已完成本地测试、双制品安装验收和独立审阅，待提交与首次 GitHub runner 执行。
+- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断和独立 `workspace-probe` 已实现；CI/构建入口已写入。
+- 最近验证：完整 75 项测试和 Ruff 通过；`build 1.5.0` 成功生成 1 个 sdist 与 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI。不能据此声称 GitHub CI 或 Python 3.14 已运行。
+- 未完成项：第五里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照、Agent 原生 Doctor 适配器。
+- 下一步：提交第五里程碑；恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
 
-本机建议安装环境（基于首版验证）：
+本机建议安装环境（基于当前验证）：
 
 - 必须：Python 3.12.7（已实际验证）和本项目开发依赖；Git 用于后续提交和版本回滚。
-- 明显提效：保留 3.12.7 主环境并可并行安装 Python 3.14（只做后续兼容性复验）、GitHub CLI（仓库/Issue 工作流）、PowerShell 7（`pwsh` 事实采集场景）。
-- 暂不需要：WSL、Docker、数据库、GUI 和额外 Agent CLI；首版不依赖它们。
+- 明显提效：并行安装 Python 3.14；本机 Python Launcher 已可用，可用 `py -3.12`/`py -3.14` 选择解释器；GitHub CLI 重新认证后用于仓库工作流；PowerShell 7 已可用。
+- 暂不需要：Node.js、WSL、Docker、数据库、GUI 和额外 Agent CLI；当前测试、探针和打包路径不依赖它们。
 
 ## 阶段 0：研究和边界
 
@@ -73,12 +73,24 @@
 
 结论边界：probe 只说明“该次命令进程对该目标目录的最小文件生命周期能力”，不说明整个 Agent、系统 ACL 或其他上下文权限。它不抵御其他进程在身份复核与紧随其后的路径删除之间刻意替换同名对象；首版不建设 Win32 句柄级安全删除。
 
+## 阶段 5：Windows CI 与包验收
+
+状态：本地验收与独立审阅完成，待提交和首次远程运行
+
+- [x] 新增 Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、CLI 帮助和 `RUNNER_TEMP` workspace-probe。
+- [x] 测试全部通过后在 Python 3.12 构建一个 sdist 与一个 wheel，并在两个干净虚拟环境分别安装启动。
+- [x] 非 PR 运行上传 7 天制品；不启用缓存、自动发布、签名、SBOM 或跨平台矩阵。
+- [x] 本机 Python 3.12.7 安装 `build 1.5.0`，完成两个制品的真实构建和安装验收。
+- [ ] GitHub 远程首次运行；Python 3.14 兼容性只能在推送后确认。
+
+本阶段本机结论：Git、PowerShell 7、Python 3.12.7、Python Launcher 和项目依赖已足够完成本地研发与打包；并行安装 Python 3.14、重新认证 GitHub CLI，会最直接地推进远程兼容性和仓库工作流。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
+
 ## 暂停检查点
 
-- 当前阶段：第四里程碑已通过专项测试、独立审阅和真实 CLI 验收，已提交 `623ef26`，待推送。
-- 最近验证：48 个既有测试 + 27 个 workspace-probe 测试，共 75 项通过；Ruff 通过；项目根在当前 Codex 沙箱中退出 1 且零残留，真实 %TEMP% 六项 pass、零残留。
-- 未完成项：GitHub 远程创建/推送，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步唯一动作：创建/更新 GitHub 远程并推送。
+- 当前阶段：第五里程碑本地验收和独立审阅完成，待提交；GitHub runner 尚未执行。
+- 最近验证：75 项测试与 Ruff 通过；build 1.5.0 构建 sdist/wheel 各 1 个；两个干净 Python 3.12 环境安装并启动 CLI 成功。
+- 未完成项：第五里程碑提交、GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步唯一动作：提交第五里程碑。
 - 恢复命令：
 
 ```powershell
@@ -95,6 +107,7 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 | 日期 | 命令 | 结果 |
 | --- | --- | --- |
 | 2026-08-24 | `python --version` | Python 3.12.7 |
+| 2026-08-24 | `py -0p` | Python Launcher 已可用；当前登记 Python 3.12.7，尚无 3.14 |
 | 2026-08-24 | `python -B -m pytest -q -p no:cacheprovider` | 42 passed |
 | 2026-08-24 | `python -m ruff check . --no-cache` | All checks passed |
 | 2026-08-24 | `python -B -m win_agent_preflight scan --json --pretty --timeout 2` | 退出 0；10 pass、3 warning、0 fail、0 unknown；JSON 可解析 |
@@ -102,6 +115,9 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 | 2026-08-24 | `python -m ruff check . --no-cache` | All checks passed |
 | 2026-08-24 | `python -B -m win_agent_preflight workspace-probe --target $env:TEMP --allow-write --json --pretty` | 退出 0；六项 pass；`successful=true`；`residual_paths=[]`；无 `.agent-preflight-probe-*` 残留 |
 | 2026-08-24 | `python -B -m win_agent_preflight workspace-probe --target . --allow-write --json --pretty` | 当前 Codex 沙箱中退出 1；创建目录 WinError 5；1 pass、1 fail、4 unknown；`residual_paths=[]`，无探针残留 |
+| 2026-08-24 | `python -m build --version` | build 1.5.0 |
+| 2026-08-24 | `python -m build --sdist --wheel` | 默认隔离构建成功生成 1 个 sdist 与 1 个 wheel |
+| 2026-08-24 | `.artifacts\\sdist-check`、`.artifacts\\wheel-check` 两个干净环境安装制品并运行 CLI 帮助 | 两个环境均退出 0 |
 | 2026-08-24 | `agent-preflight scan --timeout 2` | 退出 0；Console 报告生成成功 |
 | 2026-08-24 | `agent-preflight snapshot --label host --output %TEMP%\\win-agent-preflight-m2\\cli-host.json --timeout 1` | 退出 0；输出目录已存在时写出快照 |
 | 2026-08-24 | `agent-preflight snapshot --label current --output %TEMP%\\win-agent-preflight-m2\\cli-current.json --timeout 1` | 退出 0；第二快照写出 |
@@ -112,8 +128,7 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 
 ## 下一里程碑验收
 
-- `snapshot` 能导出脱敏的环境事实；
-- `compare` 能把宿主/Agent 差异归类为命令、Shell、PATH 或未知；
-- `windows.path_refresh` 能从真实 Windows registry PATH 判断继承，错误和未解析值不误报为 pass；
-- 所有外部命令仍由 Runner 执行并有超时；
-- 不修改系统配置，不联网，不输出密钥值。
+- GitHub Windows runner 的 Python 3.12 与 3.14 测试全部通过；
+- 包 job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
+- 用户在宿主与实际 Agent 上分别生成脱敏快照并完成 compare；
+- 不增加自动发布、缓存、签名或额外平台基础设施。

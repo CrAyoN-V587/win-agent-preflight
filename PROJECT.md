@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第四里程碑已提交，待创建远程并推送）
+状态：进行中（第五里程碑已通过审阅，待提交并推送）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：第四里程碑——增加一次性、显式授权的 Windows 工作区写入能力探针。
+当前阶段：第五里程碑——增加 Windows CI、sdist/wheel 构建和干净虚拟环境安装验收。
 
-下一步唯一动作：创建 GitHub 远程并推送；随后由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：提交第五里程碑；推送后等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
-最近验证：完整 75 项测试通过（其中 workspace-probe 27 项）；Ruff 通过；项目根在当前 Codex 沙箱中按预期报告写入拒绝并退出 1，真实 `%TEMP%` probe 六项 pass 且 `residual_paths=[]`（详见 `docs/PROGRESS.md`）。
+最近验证：完整 75 项测试与 Ruff 通过；`build 1.5.0` 已生成 1 个 sdist 和 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI。第五里程碑尚未在 GitHub runner 执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -41,6 +41,7 @@
 - EnvironmentSnapshot v1、嵌入 scan、输出目录创建和不覆盖保护；
 - Windows 路径、PATH/PATHEXT、候选集合和 evidence 的规范化比较。
 - 显式 `--target PATH --allow-write` 的 Windows 工作区写入、读取、重命名、删除和清理能力探针；结论只适用于本次命令、目标目录和当前进程上下文。
+- Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、`RUNNER_TEMP` workspace-probe 和 Python 3.12 的 sdist/wheel 干净环境安装验收。
 
 不包含：
 
@@ -49,6 +50,7 @@
 - 密钥采集、哈希、发布级安全审计；
 - GUI、数据库和 LLM 调用。
 - 递归删除、历史探针清理、目标目录遍历、ACL/提权审计或自动修复。
+- PyPI/Release 自动发布、签名、SBOM、Actions 缓存和跨平台 CI/制品。
 
 ## 成功标准
 
@@ -60,6 +62,9 @@
 - [x] PROJECT.md 与 `docs/PROGRESS.md` 能在暂停后直接恢复。
 - [x] probe 只接受显式目标和 `--allow-write`，输入拒绝前不写入；报告独立于 scan/snapshot schema。
 - [x] probe 固定六项输出 `successful` 与相对 `residual_paths`，不回显固定内容，清理不递归。
+- [x] 创建 Windows-only CI 配置：Python 3.12/3.14 测试、3.12 Ruff、CLI/runner-temp probe 和测试后包验收。
+- [x] 配置 sdist/wheel 各一个、干净虚拟环境安装和非 PR 7 天制品上传；不配置自动发布。
+- [ ] GitHub 首次 CI 在 Python 3.12/3.14 均通过；3.14 仍待实际 runner 验证。
 
 ## 计划
 
@@ -68,24 +73,26 @@
 - [x] 3. 加入 EnvironmentSnapshot v1、`snapshot` 写出和 `compare` 差异退出语义。
 - [x] 4. 加入只读注册表 PATH 事实、变量展开和跨 scope 刷新诊断。
 - [x] 5. 增加有边界的 `workspace-probe`，验证当前进程上下文的最小文件能力并保留清理证据。
-- [ ] 6. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
-- [ ] 6. 增加 Agent 原生 Doctor 适配器、Windows CI 和发布文档。
+- [x] 6. 增加 Windows CI、包构建验收和本地 release-check 文档。
+- [ ] 7. 由用户在宿主终端和 Agent 实际终端分别生成快照，验证真实环境差异。
+- [ ] 8. 增加 Agent 原生 Doctor 适配器；发布仍保持显式、手动边界。
 
 ## 技术和环境
 
 - 操作系统：Windows（设计目标）；当前验证环境 Windows，PowerShell，Python 3.12.7。
-- 语言与版本：Python `>=3.12`；当前实际验证 Python 3.12.7，Python 3.14 尚未验证。
-- 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `pytest>=8,<9`、`ruff>=0.12,<1`。
+- 语言与版本：Python `>=3.12`；当前实际验证 Python 3.12.7，Python 3.14 已进入 CI 矩阵但尚未完成首次 runner 验证。
+- 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
+- 本地包验收：`py -3.12 -m build --sdist --wheel`，再按 `docs/release-check.md` 分别安装两个制品。
 - 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`
 - 针对性验证命令：`python -B -m pytest -q -p no:cacheprovider`
 - 完整验证命令：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 
-本机建议安装环境（基于首版验证）：
+本机建议安装环境（基于当前验证和第五里程碑）：
 
-- 必须：Python 3.12.7（首版已验证）、本项目开发依赖；Git（项目版本管理需要）。
-- 明显提效：保留 3.12.7 主环境并可并行安装 Python 3.14（只做后续兼容性复验）、GitHub CLI（创建 Issue/仓库和认证检查）、PowerShell 7（验证 `pwsh` 场景）。
-- 暂不需要：WSL、Docker、数据库、GUI 工具和额外 Agent CLI；它们属于后续对照探针或适配器阶段。
+- 必须：已验证的 Python 3.12.7、本项目开发依赖和 Git。
+- 明显提效：并行安装 Python 3.14；本机 Python Launcher 已可用，可用 `py -3.12`/`py -3.14` 选择解释器；GitHub CLI 重新认证后用于远程仓库工作流；PowerShell 7 已可用。
+- 暂不需要：Node.js、Docker、WSL、数据库、GUI 工具和额外 Agent CLI；它们不属于当前测试和打包路径。
 
 ## 当前状态
 
@@ -101,19 +108,23 @@
 - 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
+- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收配置。
 
 当前阻塞：
 
 - 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
-- 第四里程碑已通过独立审阅并提交为 `623ef26`，尚未推送；本阶段不自动修改系统配置。
+- Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
+- 第五里程碑已完成本地测试、双制品安装验收和独立审阅，尚待提交和推送；本阶段不自动修改系统配置。
 
 下一步：
 
-- 创建/更新 GitHub 公开仓库并推送；之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 提交第五里程碑；
+- 创建/更新 GitHub 公开仓库并推送，观察 Python 3.12/3.14 CI 与包 job；
+- 之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- 无；本次状态文档提交后应保持工作区干净。
+- 第五里程碑的 `.github/workflows/ci.yml`、`docs/release-check.md`、`pyproject.toml` 及同步文档；已通过本地测试、Ruff、双制品安装、diff check 和独立审阅，待提交。
 
 ## 关键决策
 
@@ -130,12 +141,15 @@
 | probe 按对象身份复核本次路径 | 不把能力诊断变成目标目录清理器；身份变化或未知内容保留并用相对路径报告 | 2026-08-24 |
 | probe 结论限定为单次上下文 | 一次宿主或 Agent 运行不能替另一个上下文作权限结论 | 2026-08-24 |
 | probe 采用非对抗本地并发假设 | 对象身份变化会保守拒绝，但首版不为身份核对与路径删除之间的瞬时替换引入 Win32 句柄级安全实现 | 2026-08-24 |
+| CI 只验证 Windows Python 3.12/3.14 和包安装 | 项目目标是 Windows Agent 环境；保持最短反馈路径，不引入跨平台矩阵 | 2026-08-24 |
+| 构建验收不等于发布 | 本阶段只需要确认 sdist/wheel 可安装并启动 CLI，发布、签名和 SBOM 留待明确发布阶段 | 2026-08-24 |
 
 ## 验证证据
 
 | 日期 | 验证内容 | 命令或步骤 | 结果 |
 | --- | --- | --- | --- |
 | 2026-08-24 | 运行时 | `python --version` | Python 3.12.7 |
+| 2026-08-24 | Python Launcher | `py -0p` | 已可用；当前登记 Python 3.12.7，尚无 3.14 |
 | 2026-08-24 | 单元、场景和 CLI 端到端测试 | `python -B -m pytest -q -p no:cacheprovider` | 42 passed |
 | 2026-08-24 | 静态检查 | `python -m ruff check . --no-cache` | All checks passed |
 | 2026-08-24 | 真实 Windows 注册表和 CLI | `python -B -c "from win_agent_preflight.windows import collect_registry_path_facts; print(collect_registry_path_facts())"`、`python -B -m win_agent_preflight scan --json --pretty --timeout 2` | HKLM/HKCU 读取完整；CLI 退出 0，JSON 可解析，10 pass、3 warning、0 fail、0 unknown；未写入注册表 |
@@ -143,19 +157,24 @@
 | 2026-08-24 | workspace-probe 静态检查 | `python -m ruff check src tests --no-cache` | All checks passed |
 | 2026-08-24 | workspace-probe 真实验收 | `python -B -m win_agent_preflight workspace-probe --target $env:TEMP --allow-write --json --pretty` | 退出 0；六项 pass；`successful=true`；`residual_paths=[]`；无 `.agent-preflight-probe-*` 残留 |
 | 2026-08-24 | Codex 项目根诊断 | `python -B -m win_agent_preflight workspace-probe --target . --allow-write --json --pretty` | 退出 1；创建目录 WinError 5；1 pass、1 fail、4 unknown；`residual_paths=[]`，未产生探针残留 |
+| 2026-08-24 | 第五里程碑配置检查 | `.github/workflows/ci.yml`、`docs/release-check.md`、`pyproject.toml` 和项目状态文档已更新 | 已写入 Windows-only CI、3.12/3.14 矩阵、包验收和本地恢复说明；尚未在 GitHub runner 执行 |
+| 2026-08-24 | 标准打包工具 | `python -m pip install -e ".[dev]"`、`python -m build --version` | 安装成功；build 1.5.0 |
+| 2026-08-24 | 本地双制品构建 | `python -m build --sdist --wheel` | 默认隔离构建成功生成 `win_agent_preflight-0.1.0.tar.gz` 与 `win_agent_preflight-0.1.0-py3-none-any.whl`，各 1 个 |
+| 2026-08-24 | 干净环境安装 | 在 `.artifacts\\sdist-check` 与 `.artifacts\\wheel-check` 分别安装制品并运行 `python -m win_agent_preflight --help` | 两个环境均退出 0 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第四里程碑 `623ef26`；状态文档提交完成后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第四里程碑状态提交 `418dc66`；第五里程碑文件尚未提交，提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
-- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`agent-preflight scan --json`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
+- 恢复/验证命令：`python -B -m pytest -q -p no:cacheprovider`；`python -m ruff check . --no-cache`；`py -3.12 -m build --sdist --wheel`；`agent-preflight scan --json`；`agent-preflight workspace-probe --target . --allow-write --json --pretty`；`agent-preflight snapshot --label host --output .\\snapshots\\host.json --pretty`。
 
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
+- 第五里程碑的 Python 3.14 兼容性必须以首次 GitHub CI 结果确认；本地 Python 3.12 双制品构建和安装已通过，不能替代 runner 结果。
 - `npm.ps1` 的阻止判断来自实际 Runner 结果和 PowerShell 事实，不会修改执行策略。
 - 注册表 PATH 只读采集已实现；非 Windows 平台、读取异常、类型错误或未解析变量返回 `unknown`，但另一 scope 已证明缺失时返回 `warning`。
 - 命令发现遇到不可访问的 PATH 候选会跳过并继续扫描；当前不会把该情况细分为“不可访问候选”，只在后续版本增加精确分类。

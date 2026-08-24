@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-当前版本已完成第四个可运行里程碑，提供 `scan`、`snapshot`、`compare` 和 `workspace-probe` 命令：
+当前版本已完成第四个可运行里程碑，并已加入第五里程碑的 Windows CI 与包验收配置，提供 `scan`、`snapshot`、`compare` 和 `workspace-probe` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -24,9 +24,11 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 ## 环境
 
 - 设计目标：Windows；
-- 安装元数据要求 Python `>=3.12`；当前验证环境为 Python 3.12.7，Python 3.14 尚未验证；
+- 安装元数据要求 Python `>=3.12`；当前本机验证环境为 Python 3.12.7，Python 3.14 已加入 CI 矩阵但等待首次 CI 验证；
 - 运行时：`typer>=0.16,<1`；
-- 开发：`pytest>=8,<9`、`ruff>=0.12,<1`。
+- 开发：`build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
+
+本机建议优先并行安装 Python 3.14，并使用 Windows Python Launcher（`py -3.12`、`py -3.14`）选择版本；GitHub CLI 需要重新认证后再用于远程仓库操作。当前项目不需要 Node.js、Docker 或 WSL。
 
 ## 使用
 
@@ -39,6 +41,19 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 agent-preflight compare .\snapshots\host.json .\snapshots\host.json --json
 agent-preflight workspace-probe --target . --allow-write --json --pretty
 ```
+
+构建源码包和 wheel 的本地验收见 [`docs/release-check.md`](docs/release-check.md)：
+
+```powershell
+py -3.12 -m pip install -e ".[dev]"
+py -3.12 -m build --sdist --wheel
+```
+
+## CI 与包验收
+
+`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。
+
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.14 的首次实际验证仍以 GitHub CI 结果为准。
 
 只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
 
@@ -57,7 +72,8 @@ agent-preflight workspace-probe --target . --allow-write --json --pretty
 - [`PROJECT.md`](PROJECT.md)：目标、范围、成功标准、暂停恢复入口；
 - [`docs/design.md`](docs/design.md)：首阶段架构和数据边界；
 - [`docs/research.md`](docs/research.md)：需求研究和取舍；
-- [`docs/PROGRESS.md`](docs/PROGRESS.md)：按里程碑记录实际验证与下一步。
+- [`docs/PROGRESS.md`](docs/PROGRESS.md)：按里程碑记录实际验证与下一步；
+- [`docs/release-check.md`](docs/release-check.md)：本地构建、双制品和干净虚拟环境验收。
 
 ## 开发
 

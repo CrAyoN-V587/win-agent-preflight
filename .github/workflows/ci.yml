@@ -1,0 +1,109 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install development package
+        run: python -m pip install --disable-pip-version-check ".[dev]"
+
+      - name: Run tests
+        run: python -B -m pytest -q -p no:cacheprovider
+
+      - name: Run Ruff (Python 3.12)
+        if: matrix.python-version == '3.12'
+        run: python -m ruff check . --no-cache
+
+      - name: Check CLI help
+        run: python -m win_agent_preflight --help
+
+      - name: Probe runner workspace
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP "win-agent-preflight-workspace"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          python -B -m win_agent_preflight workspace-probe --target $target --allow-write --json --pretty
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  package:
+    name: Build and install packages
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: python -m pip install --disable-pip-version-check ".[dev]"
+
+      - name: Build sdist and wheel
+        run: python -m build --sdist --wheel
+
+      - name: Assert one sdist and one wheel
+        shell: pwsh
+        run: |
+          $sdists = @(Get-ChildItem -LiteralPath dist -Filter *.tar.gz -File)
+          $wheels = @(Get-ChildItem -LiteralPath dist -Filter *.whl -File)
+          if ($sdists.Count -ne 1) { throw "expected exactly one sdist, found $($sdists.Count)" }
+          if ($wheels.Count -ne 1) { throw "expected exactly one wheel, found $($wheels.Count)" }
+
+      - name: Install and run sdist in a clean venv
+        shell: pwsh
+        run: |
+          $sdist = @(Get-ChildItem -LiteralPath dist -Filter *.tar.gz -File)[0]
+          $venv = Join-Path $env:RUNNER_TEMP "win-agent-preflight-sdist-venv"
+          python -m venv $venv
+          $venvPython = Join-Path $venv "Scripts\python.exe"
+          & $venvPython -m pip install --disable-pip-version-check $sdist.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $venvPython -m win_agent_preflight --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install and run wheel in a clean venv
+        shell: pwsh
+        run: |
+          $wheel = @(Get-ChildItem -LiteralPath dist -Filter *.whl -File)[0]
+          $venv = Join-Path $env:RUNNER_TEMP "win-agent-preflight-wheel-venv"
+          python -m venv $venv
+          $venvPython = Join-Path $venv "Scripts\python.exe"
+          & $venvPython -m pip install --disable-pip-version-check $wheel.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $venvPython -m win_agent_preflight --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload packages (non-PR runs)
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: win-agent-preflight-dist-${{ github.run_id }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
