@@ -34,6 +34,8 @@ from .reporting import (
     render_support_report_json,
     render_workspace_probe_console,
     render_workspace_probe_json,
+    render_workspace_scope_console,
+    render_workspace_scope_json,
 )
 from .snapshot import (
     SnapshotError,
@@ -49,6 +51,12 @@ from .workspace_probe import (
     WorkspaceProbeInterrupted,
     WorkspaceProbeUnexpectedError,
     run_workspace_probe,
+)
+from .workspace_scope import (
+    WorkspaceScopeInputError,
+    WorkspaceScopeInterrupted,
+    WorkspaceScopeUnexpectedError,
+    run_workspace_scope,
 )
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, rich_markup_mode=None)
@@ -278,6 +286,51 @@ def workspace_probe(
         render_workspace_probe_json(report, pretty=pretty)
         if json_output
         else render_workspace_probe_console(report)
+    )
+    if not report.successful:
+        raise typer.Exit(code=1)
+
+
+@app.command("workspace-scope")
+def workspace_scope(
+    target: Path = typer.Option(..., "--target", help="Existing target workspace directory"),
+    control: Path = typer.Option(..., "--control", help="Existing control workspace directory"),
+    allow_write: bool = typer.Option(
+        False,
+        "--allow-write",
+        help="Allow one bounded probe in each directory",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+) -> None:
+    """Compare bounded workspace capabilities in target and control directories."""
+
+    if not allow_write:
+        typer.echo("workspace-scope error: --allow-write is required", err=True)
+        raise typer.Exit(code=2)
+    try:
+        report = run_workspace_scope(target, control, allow_write=allow_write)
+    except WorkspaceScopeInterrupted as exc:
+        typer.echo(
+            render_workspace_scope_json(exc.report, pretty=pretty)
+            if json_output
+            else render_workspace_scope_console(exc.report)
+        )
+        raise typer.Exit(code=130) from exc
+    except WorkspaceScopeUnexpectedError as exc:
+        typer.echo(
+            render_workspace_scope_json(exc.report, pretty=pretty)
+            if json_output
+            else render_workspace_scope_console(exc.report)
+        )
+        raise typer.Exit(code=1) from exc
+    except (WorkspaceScopeInputError, OSError, ValueError) as exc:
+        typer.echo(f"workspace-scope error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_workspace_scope_json(report, pretty=pretty)
+        if json_output
+        else render_workspace_scope_console(report)
     )
     if not report.successful:
         raise typer.Exit(code=1)

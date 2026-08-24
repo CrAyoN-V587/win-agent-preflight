@@ -6,13 +6,13 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：上述既有切片、`command-doctor` 和 `git-doctor` 均已有本地及远程 Windows CI/包验收证据。
+- 当前阶段：既有切片、`command-doctor` 和 `git-doctor` 有本地及远程验收；`workspace-scope` 为当前未提交的本地切片，远程 CI 尚未验证。
 
 ## 环境和命令
 
 - 安装/准备：`python -m pip install -e ".[dev]"`
 - 构建验收：`python -m build --sdist --wheel`（完整步骤见 `docs/release-check.md`）
-- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight command-doctor npm --json --pretty`、`agent-preflight git-doctor --target . --json --pretty`、`agent-preflight support-report --json`、`agent-preflight project-doctor --target . --json --pretty`
+- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight workspace-scope --target <dir> --control <dir> --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight command-doctor npm --json --pretty`、`agent-preflight git-doctor --target . --json --pretty`、`agent-preflight support-report --json`、`agent-preflight project-doctor --target . --json --pretty`
 - 针对性测试：`python -B -m pytest -q -p no:cacheprovider`
 - 完整测试：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 - 构建或检查：`python -m ruff check . --no-cache`；打包验收不得替代测试。
@@ -20,7 +20,7 @@
 
 ## 项目约定
 
-- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集、launcher lstat 和 PowerShell 检查；`launcher_probe.py` Agent/command doctor 共用的候选启动、状态分类和版本提取；`checks.py` 诊断分类与预计算检查注入；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`command_doctor.py` 独立 CommandDoctorReport v1 与单命令诊断；`support_report.py` 独立 SupportReport v2 组合和纯 `next_checks` 推导；`project_doctor.py` 独立 ProjectDoctorReport v1、固定第一层 marker 推导和工具版本探测；`reporting.py` 输出；`cli.py` 参数与编排。
+- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集、launcher lstat 和 PowerShell 检查；`launcher_probe.py` Agent/command doctor 共用的候选启动、状态分类和版本提取；`checks.py` 诊断分类与预计算检查注入；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`workspace_scope.py` 独立 WorkspaceScopeReport v1 与双目录编排；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`command_doctor.py` 独立 CommandDoctorReport v1 与单命令诊断；`support_report.py` 独立 SupportReport v2 组合和纯 `next_checks` 推导；`project_doctor.py` 独立 ProjectDoctorReport v1、固定第一层 marker 推导和工具版本探测；`reporting.py` 输出；`cli.py` 参数与编排。
 - `snapshot.py` 的写入只使用目标父目录内本次生成的 UUID 临时名和一次 `O_EXCL` 创建；最多重试三次名称碰撞，其他写入错误立即失败。写入完成后按 `--force` 选择替换或硬链接，失败时只清理本次已知临时文件，不扫描目录。
 - 代码风格：Python 类型标注、不可变数据模型优先；公共序列化字段使用稳定 snake_case。
 - 数据和配置位置：扫描只读取当前环境，不保存配置和凭据。
@@ -43,6 +43,8 @@
 - `workspace-probe` 只创建目标直接子目录中的本次随机探针；按 Windows 对象身份复核本次已知两个文件和空目录后做路径级清理，不遍历目标、不递归删除、不处理历史残留。
 - `workspace-probe` 面向非对抗的本地诊断；不支持其他进程在“身份复核—路径操作”的瞬间替换同名对象，也不为消除该 TOCTOU 窗口引入句柄级安全实现。
 - `workspace-probe` 的固定六项使用独立 v1 schema，不修改 `scan`/`snapshot` 的 JSON 字段和退出语义。
+- `workspace-scope` 必须同时接受现有普通 `--target`、`--control` 目录和显式 `--allow-write`；在任何 probe 写入前完成两个目录的 lstat/reparse/strict-resolve 预验证，然后严格按 target、control 各调用一次既有 `workspace-probe`。普通失败继续第二个目录；子报告归约为 usable、failed（有 FAIL 或 residual）或 unknown，任一 unknown 使正常双返回报告为 `inconclusive` 且 `complete=true`。非预期异常或 Ctrl-C 生成 `inconclusive` partial 且不再继续；`both_usable`、`target_specific_failure`、`control_specific_failure`、`both_failed`、`inconclusive` 为固定状态，退出码分别按成功 0、能力/部分失败 1、输入 2、Ctrl-C 130。
+- `workspace-scope` 使用独立 WorkspaceScopeReport v1，顶层 `complete` 仅表示两个 probe 是否都返回；不修改 WorkspaceProbeReport v1，不联网、不枚举目录、不扩大写入边界。
 - `agent-doctor` 使用独立 AgentDoctorReport v1，不复用 `CheckResult`，不修改 `scan`/`snapshot`/`workspace-probe` schema 或 checks 语义。
 - `agent-doctor` 默认只检查 `codex`、`claude`、`dsh`；重复 `--agent` 固定去重顺序；同一 Agent 可按 PATH 顺序探测多个已解析的 `.exe`/`.cmd`/`.bat`/`.ps1` 普通 launcher，每个候选最多执行一次 `--version`。
 - `agent-doctor` 只有 `--version` 退出 0 且 stdout/stderr 至少有一条非空文本时才报告 `usable`；成功结果保存脱敏后的第一条非空版本行（最多 200 字符），报告固定包含 `kind=agent_doctor` 和 `offline=true`。

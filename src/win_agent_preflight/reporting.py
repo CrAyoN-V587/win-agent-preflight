@@ -11,6 +11,7 @@ from .models import ScanReport
 from .project_doctor import ProjectDoctorReport
 from .support_report import SupportReport
 from .workspace_probe import WorkspaceProbeReport
+from .workspace_scope import WorkspaceScopeReport
 
 
 def render_json(report: ScanReport, *, pretty: bool = False) -> str:
@@ -64,6 +65,38 @@ def render_workspace_probe_console(report: WorkspaceProbeReport) -> str:
     lines.extend(("", f"Summary: {counts}"))
     if report.residual_paths:
         lines.append("Residual paths: " + ", ".join(report.residual_paths))
+    return "\n".join(lines)
+
+
+def render_workspace_scope_json(
+    report: WorkspaceScopeReport, *, pretty: bool = False
+) -> str:
+    """Render the independent workspace-scope v1 schema."""
+
+    return json.dumps(
+        report.to_dict(),
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+    )
+
+
+def render_workspace_scope_console(report: WorkspaceScopeReport) -> str:
+    """Render the bounded comparison without exposing probe content."""
+
+    lines = ["Windows Agent Preflight workspace scope", "=" * 40]
+    lines.append(f"Target: {report.target}")
+    lines.append(f"Control: {report.control}")
+    lines.append(f"State: {report.state.value}")
+    lines.append(f"Complete: {str(report.complete).lower()}")
+    for label, probe in (
+        ("Target probe", report.target_probe),
+        ("Control probe", report.control_probe),
+    ):
+        if probe is None:
+            lines.append(f"{label}: not completed")
+        else:
+            lines.append(f"{label}: successful={str(probe.successful).lower()}")
     return "\n".join(lines)
 
 

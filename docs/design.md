@@ -14,6 +14,7 @@ cli.py
   ├─ launcher_probe.py（Agent/command doctor 共用候选探针）
   ├─ support_report.py（SupportReport v2、离线组合采集与纯 next_checks 推导）
   ├─ project_doctor.py（ProjectDoctorReport v1、第一层 marker 推导与工具版本探测）
+  ├─ workspace_scope.py（WorkspaceScopeReport v1、双目录 probe 编排）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
        ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
@@ -163,3 +164,11 @@ host 与 Agent 的差异不能由单个进程自动采集：同一进程连续�
 固定只读调用顺序为 Git launcher `--version`、`rev-parse --is-inside-work-tree`、`config --show-scope --get user.name`、`user.email`、`remote get-url origin`、`remote get-url --push origin`、`config --get-all credential.helper`；只有 fetch/push 都能安全归约为 GitHub remote 时才探测 `gh --version`。报告 checks 固定为 `git.launcher`、`git.repository`、`git.commit_identity`、`git.remote.origin`、`git.credential_helper`、`github.cli`、`github.auth`。Git launcher/repository/identity/origin 是 `local_ready` 的必要条件；helper、gh 和离线认证观察不单独阻断 `local_ready`。`remote_auth_verified` 恒为 `false`。
 
 identity 只保留 name/email 是否配置及 Git scope；未知或畸形 scope 不计为 configured。remote 只保留 `https`/`ssh`/`local`/`unknown` transport、`github.com|other|local|unknown` host class、fetch/push 是否同目的和 embedded userinfo 布尔值；标准 `ssh://git@host/repo` 的 username 是 SSH 连接信息，不按 HTTP embedded credential 告警，只有 SSH URL 存在 password 时才置 true；Windows 本地路径（包括带空格的 `C:\Repos\My Repo\origin.git`）先按 local 解析。helper 只保留 configured、GCM 是否检测到、helper_count 和 `credentials_verified=false`。原值只在归约函数内即时使用，不进入模型、异常、evidence、Console 或 JSON。失败只保留返回码、超时、error type 和 WinError，不保留 stdout/stderr；GitHub auth 固定为 `unknown`/`not_checked_offline`，不运行 `gh auth`、credential fill、GCM diagnose、push/fetch/pull/ls-remote/ssh，不联网、不读 token、不写配置。成功退出 0，确认存在本地缺口退出 1，输入/platform/timeout 错误退出 2。提交 `67697c7` 已通过 Windows CI `32708225452`。
+
+## 第十五里程碑：workspace-scope
+
+`workspace-scope --target TARGET --control CONTROL --allow-write` 是两个单目录 probe 的窄比较器，不改变既有 `WorkspaceProbeReport v1`。两个参数都必须指向 Windows 上已存在的普通目录；target/control 不能是重解析点，均需在任何写入前通过 `lstat` 和 `resolve(strict=True)`，并且不能解析为同一目录。预验证失败直接退出 2，保证 probe 尚未调用、目标没有写入。
+
+预验证成功后只按固定顺序调用现有 `run_workspace_probe` 两次：先 target，再 control；真实 probe 会收到相同的 `user_profile` 脱敏参数，注入测试 runner 仍只需接受 `path` 与 `allow_write`。子报告归约为 usable、failed（任一 FAIL 或 residual）或 unknown；普通 failed 仍继续另一个目录，任一 unknown 使正常双返回结果为 `inconclusive` 且 `complete=true`。非预期异常或 Ctrl-C 生成只含已获得子报告的 `inconclusive` partial，顶层 `complete=false`，并停止后续调用。独立 v1 JSON 保留脱敏 target/control 路径、嵌套 probe 报告和脱敏 evidence，Console 只显示状态与成功布尔值。
+
+该命令只复用 probe 的既有六步和边界，不枚举目录、不递归清理、不联网、不修改 ACL/PATH/注册表/执行策略；退出码为成功 0、能力或 partial 失败 1、输入/平台错误 2、Ctrl-C 130。当前切片为本地未提交实现，必须在主 Agent 复核后再提交并由 CI 验证。

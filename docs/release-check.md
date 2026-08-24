@@ -93,6 +93,16 @@ git diff --check
 
 当前结果为 38 passed（Git Doctor 37 项，CLI help 1 项）、全量 237 passed、Ruff 通过、diff check 无内容错误；真实仓库根只读验收退出 0，`local_ready=true`，认证仍固定为 `not_checked_offline`。提交 `67697c7` 的 Windows CI `32708225452` 已完成两个 Python 矩阵 job、sdist/wheel 双安装和制品上传；不要把本地报告中的 `github.auth=not_checked_offline` 解释为登录失败或登录成功。
 
+## workspace-scope 本地边界
+
+`workspace-scope` 是未提交的本地切片，当前本地全量为 261 passed，只做本地验证，不能把旧 CI run 的绿色结果解释为包含它。它要求两个现有普通目录和显式 `--allow-write`：
+
+```powershell
+python -B -m win_agent_preflight workspace-scope --target . --control $env:TEMP --allow-write --json --pretty
+```
+
+命令先对两个目录执行只读 `lstat`、重解析点检查和 `resolve(strict=True)`，预验证失败时不调用 probe、不写入；通过后按固定 target → control 顺序各调用一次既有 `workspace-probe`。普通失败仍执行第二个目录；子报告归约为 usable、failed（FAIL 或 residual）或 unknown，任一 unknown 使完整结果为 `inconclusive` 且 `complete=true`，异常或 Ctrl-C 则为 `complete=false` 的 partial 并停止。`both_usable` 退出 0，其余完整状态或 partial 退出 1，输入 2，Ctrl-C 130。该命令不联网、不递归、不枚举目录，不改变既有 probe schema。真实矩阵中 Triton target 与 `%TEMP%` control 为 `both_usable`；MyMineCraft/MCP Lab target 为 WinError 5、control 可用，均归为 `target_specific_failure`；四个目录均无探针残留。远程 CI 仍须在功能提交后验证。
+
 ## snapshot 写入边界
 
 快照写出在目标父目录内创建本次 UUID 临时文件，使用 `O_EXCL` 且最多尝试三个名称；只有 `FileExistsError` 会触发下一名称，权限或其他写入错误应立即以 CLI 退出码 2 返回。写入通过 UTF-8 `fdopen`、write、flush 和 fsync 完成，`--force` 使用 replace，默认模式使用 link 后 unlink；失败只清理本次已知临时文件，不扫描目录或处理历史 `.tmp`。

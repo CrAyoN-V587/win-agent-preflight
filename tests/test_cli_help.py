@@ -16,6 +16,7 @@ HELP_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("support-report",),
     ("project-doctor",),
     ("workspace-probe",),
+    ("workspace-scope",),
 )
 
 
