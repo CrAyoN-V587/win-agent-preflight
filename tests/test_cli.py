@@ -13,7 +13,7 @@ from win_agent_preflight.agent_doctor import (
     AgentDoctorState,
 )
 from win_agent_preflight.models import CheckResult, CheckStatus, ScanReport
-from win_agent_preflight.snapshot import capture_snapshot, write_snapshot
+from win_agent_preflight.snapshot import SnapshotError, capture_snapshot, write_snapshot
 
 
 def _report(*statuses: CheckStatus) -> ScanReport:
@@ -77,6 +77,29 @@ def test_snapshot_writes_even_when_embedded_scan_has_fail(monkeypatch, tmp_path:
     )
     assert refused.exit_code == 2
     assert profile is None or profile.casefold() not in refused.output.casefold()
+
+
+def test_snapshot_error_exits_two_without_success_message(monkeypatch, tmp_path: Path) -> None:
+    fixture = capture_snapshot("host", env={})
+    output = tmp_path / "snapshot.json"
+    monkeypatch.setattr(cli, "capture_snapshot", lambda label, timeout: fixture)
+    monkeypatch.setattr(
+        cli,
+        "write_snapshot",
+        lambda snapshot, output, pretty, force: (_ for _ in ()).throw(
+            SnapshotError("cannot create temporary snapshot")
+        ),
+    )
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["snapshot", "--label", "host", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "snapshot written" not in result.output
+    assert "cannot create temporary snapshot" in result.output
+    assert not output.exists()
 
 
 def test_compare_cli_json_exit_codes(tmp_path: Path) -> None:

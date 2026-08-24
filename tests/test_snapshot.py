@@ -7,9 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from win_agent_preflight import snapshot as snapshot_module
 from win_agent_preflight.models import CheckStatus
 from win_agent_preflight.snapshot import (
     EnvironmentSnapshot,
+    SnapshotError,
     SnapshotInputError,
     SnapshotVersionError,
     capture_snapshot,
@@ -234,6 +236,21 @@ def test_write_snapshot_creates_parent_and_refuses_overwrite(tmp_path: Path) -> 
     assert output.read_text(encoding="utf-8") == original
 
 
+@pytest.mark.parametrize("force", [False, True])
+def test_parent_file_is_write_error_not_output_exists(
+    tmp_path: Path, force: bool
+) -> None:
+    parent = tmp_path / "parent-file"
+    parent.write_text("existing parent\n", encoding="utf-8")
+    output = parent / "snapshot.json"
+
+    with pytest.raises(SnapshotError, match="cannot write snapshot") as error:
+        write_snapshot(_snapshot(), output, force=force)
+
+    assert "pass --force" not in str(error.value)
+    assert parent.read_text(encoding="utf-8") == "existing parent\n"
+
+
 def test_failed_atomic_replace_keeps_existing_file_and_cleans_temp(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -249,3 +266,218 @@ def test_failed_atomic_replace_keeps_existing_file_and_cleans_temp(
         write_snapshot(_snapshot(), output, force=True)
     assert output.read_text(encoding="utf-8") == "original\n"
     assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+def test_first_temporary_permission_error_fails_once_without_output_or_temp(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+    calls = 0
+
+    def fail_open(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise PermissionError("sandbox denied")
+
+    monkeypatch.setattr(snapshot_module.os, "open", fail_open)
+    with pytest.raises(SnapshotError, match="cannot create temporary snapshot"):
+        write_snapshot(_snapshot(), output)
+
+    assert calls == 1
+    assert not output.exists()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_three_temporary_name_collisions_fail_without_retrying_other_errors(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+    calls = 0
+
+    def collide(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise FileExistsError("name collision")
+
+    monkeypatch.setattr(snapshot_module.os, "open", collide)
+    with pytest.raises(SnapshotError, match="three temporary-name collisions"):
+        write_snapshot(_snapshot(), output)
+
+    assert calls == 3
+    assert not output.exists()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_temporary_name_collision_then_success_writes_snapshot(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+    real_open = snapshot_module.os.open
+    calls = 0
+
+    def collide_once(path, flags, mode=0o777):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise FileExistsError("name collision")
+        return real_open(path, flags, mode)
+
+    monkeypatch.setattr(snapshot_module.os, "open", collide_once)
+    write_snapshot(_snapshot(), output)
+
+    assert calls == 2
+    assert output.exists()
+    assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+def test_nonforce_link_race_keeps_competing_output_and_cleans_temp(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+
+    def competing_link(source, destination):
+        del source
+        Path(destination).write_text("competitor\n", encoding="utf-8")
+        raise FileExistsError("destination appeared")
+
+    monkeypatch.setattr(snapshot_module.os, "link", competing_link)
+    with pytest.raises(SnapshotError, match="output already exists"):
+        write_snapshot(_snapshot(), output)
+
+    assert output.read_text(encoding="utf-8") == "competitor\n"
+    assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+@pytest.mark.parametrize("failure", ["fdopen", "fsync"])
+def test_write_or_fsync_failure_cleans_known_temp(
+    monkeypatch, tmp_path: Path, failure: str
+) -> None:
+    output = tmp_path / "snapshot.json"
+    if failure == "fdopen":
+        def fail_fdopen(*args, **kwargs):
+            raise OSError("write setup failure")
+
+        monkeypatch.setattr(snapshot_module.os, "fdopen", fail_fdopen)
+    else:
+        monkeypatch.setattr(
+            snapshot_module.os,
+            "fsync",
+            lambda descriptor: (_ for _ in ()).throw(OSError("fsync failure")),
+        )
+
+    with pytest.raises(SnapshotError, match="cannot write snapshot"):
+        write_snapshot(_snapshot(), output)
+
+    assert not output.exists()
+    assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+def test_fdopen_failure_closes_descriptor(monkeypatch, tmp_path: Path) -> None:
+    output = tmp_path / "snapshot.json"
+    real_close = snapshot_module.os.close
+    descriptors: list[int] = []
+
+    def fail_fdopen(descriptor, *args, **kwargs):
+        descriptors.append(descriptor)
+        raise OSError("fdopen failure")
+
+    closed: list[int] = []
+
+    def record_close(descriptor):
+        closed.append(descriptor)
+        return real_close(descriptor)
+
+    monkeypatch.setattr(snapshot_module.os, "fdopen", fail_fdopen)
+    monkeypatch.setattr(snapshot_module.os, "close", record_close)
+    with pytest.raises(SnapshotError, match="cannot write snapshot"):
+        write_snapshot(_snapshot(), output)
+
+    assert descriptors
+    assert closed == descriptors
+    assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+def test_write_failure_cleans_known_temp(monkeypatch, tmp_path: Path) -> None:
+    output = tmp_path / "snapshot.json"
+    real_fdopen = snapshot_module.os.fdopen
+
+    def failing_fdopen(descriptor, *args, **kwargs):
+        handle = real_fdopen(descriptor, *args, **kwargs)
+
+        class FailingWriter:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return handle.__exit__(exc_type, exc_value, traceback)
+
+            def write(self, text):
+                del text
+                raise OSError("write failure")
+
+            def flush(self):
+                return handle.flush()
+
+            def fileno(self):
+                return handle.fileno()
+
+        return FailingWriter()
+
+    monkeypatch.setattr(snapshot_module.os, "fdopen", failing_fdopen)
+    with pytest.raises(SnapshotError, match="cannot write snapshot"):
+        write_snapshot(_snapshot(), output)
+
+    assert not output.exists()
+    assert list(tmp_path.glob(f".{output.name}.*.tmp")) == []
+
+
+def test_primary_failure_and_cleanup_failure_are_both_reported(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+    real_unlink = Path.unlink
+    unlink_calls: list[Path] = []
+
+    def fail_temp_unlink(path, *args, **kwargs):
+        if path.name.startswith(f".{output.name}.") and path.name.endswith(".tmp"):
+            unlink_calls.append(path)
+            raise PermissionError("cleanup denied")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(snapshot_module.os, "fsync", lambda descriptor: (_ for _ in ()).throw(
+        OSError("fsync failure")
+    ))
+    monkeypatch.setattr(Path, "unlink", fail_temp_unlink)
+
+    with pytest.raises(SnapshotError, match="cannot write snapshot") as error:
+        write_snapshot(_snapshot(), output)
+
+    assert "cannot clean temporary snapshot" in str(error.value)
+    assert len(unlink_calls) == 1
+    assert not output.exists()
+    assert len(list(tmp_path.glob(f".{output.name}.*.tmp"))) == 1
+
+
+def test_nonforce_commit_then_temp_delete_failure_keeps_output_and_residue(
+    monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "snapshot.json"
+    real_unlink = Path.unlink
+    unlink_calls: list[Path] = []
+
+    def fail_temp_unlink(path, *args, **kwargs):
+        if path.name.startswith(f".{output.name}.") and path.name.endswith(".tmp"):
+            unlink_calls.append(path)
+            raise PermissionError("delete temp denied")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_temp_unlink)
+
+    with pytest.raises(SnapshotError, match="cannot write snapshot") as error:
+        write_snapshot(_snapshot(), output)
+
+    assert "cannot clean temporary snapshot" in str(error.value)
+    assert len(unlink_calls) == 2
+    assert output.exists()
+    assert output.read_text(encoding="utf-8").endswith("\n")
+    assert len(list(tmp_path.glob(f".{output.name}.*.tmp"))) == 1

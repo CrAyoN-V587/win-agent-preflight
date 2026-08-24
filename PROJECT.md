@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（`project-doctor` 提交 `4b12475` 已推送；最新 main CI run `32696172691` 全部通过）
+状态：进行中（`project-doctor` 提交 `4b12475` 已推送；此前已推送内容的最新 main CI run `32696504545` 全部通过；snapshot 写入修复待远程复验）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：真实 host/agent 差异采集准备——`project-doctor` 已完成设计、实现、复审和远程验证。
+当前阶段：snapshot 写入快速失败修复——已完成有界临时文件实现、失败清理测试和本地真实边界验证，待提交/远程复验。
 
-下一步：准备可复制的 host/agent 成对采集流程；用户在宿主终端和 Agent 实际终端分别生成快照后，用 `compare` 验证真实差异。
+下一步：先提交并推送 snapshot 修复，重跑 Windows CI；通过后再准备可复制的 host/agent 成对采集流程。
 
-最近验证：本地完整回归 145 项、Ruff、严格 cp1252 子进程 help、`project-doctor` 定向测试和真实仓库根命令均已通过；最新 main CI run [`32696172691`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff 和真实 `%TEMP%` 写出/读取边界已通过；此前已推送内容的最新 main CI run [`32696504545`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过；该 run 不包含当前 snapshot 修复（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -45,6 +45,7 @@
 - 独立 `agent-doctor`：默认/重复 `--agent` 选择、PATH 中多类 launcher 解析、同一 Agent 多候选回退、每个候选最多一次 `--version` 探针和脱敏状态报告。
 - 独立 `support-report`：固定 v2 组合 envelope、有限环境事实、Agent Doctor 结果复用、scan 预计算注入、纯 `next_checks` 推导和脱敏采集错误。
 - 独立 `project-doctor`：只读取目标第一层十个固定 marker，推导 python/node/npm/pnpm/cmake，按固定顺序执行必需工具的 `--version`，不递归、不读 marker 内容、不使用目标目录 cwd。
+- snapshot 写出：目标父目录内最多三次 UUID 临时名的 `O_EXCL` 创建，只有名称碰撞重试；完成后按 force/non-force 语义提交，失败只清理本次已知临时文件。
 
 不包含：
 
@@ -79,6 +80,7 @@
 - [x] `SupportReport v2` 保留 v1 顶层字段并增加不可变 `next_checks`；固定优先级/Agent 顺序、去重、触发边界和 Console/JSON 展示均有测试。
 - [x] 根命令和全部子命令 help 在严格 `PYTHONIOENCODING=cp1252:strict` 下可解码并退出 0，且不会执行采集或写文件。
 - [x] `project-doctor` 的固定 marker 推导、冲突/孤立、marker 异常累计、输入边界、工具调用/required_by、脱敏、JSON/Console 和退出码已有本地及远程测试。
+- [x] snapshot 写入改为有界 `O_EXCL` 临时文件流程；权限/其他写入错误快速退出 2，失败不留下本次临时文件，覆盖碰撞、写入、fsync、替换和 CLI 错误路径测试。
 
 ## 计划
 
@@ -94,6 +96,7 @@
 - [x] 10. 将 `support-report` 升级为 v2，增加纯 `next_checks` 推导；不维护双版本或执行自动建议。
 - [x] 11. 将 Typer 公开 help/docstring 调整为 ASCII，关闭 Unicode 帮助格式，并加入 cp1252 子进程 smoke test；不改变报告输出（本地完成，推送后重跑 CI）。
 - [x] 12. 增加独立 `project-doctor` v1：第一层 marker 推导与必需工具 `--version` 探测；设计、实现、复审与远程验证完成。
+- [x] 13. 修复 snapshot 在拒绝写入目录中可能高 CPU/长时间重试的问题；实现有界临时文件创建和失败清理（本地完成，待推送后远程复验）。
 
 ## 技术和环境
 
@@ -126,25 +129,27 @@
 - 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
-- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；修复提交 `affa4a3` 对应的最新 main run `32693695834` 已全部通过。
+- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；此前已推送内容的最新 main run `32696504545` 已全部通过。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
 - 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现、测试和独立复审已完成并提交为 `9f5b951`。
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
 - 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
+- snapshot 写入已改为最多三次 UUID 临时名的 `O_EXCL` 创建；只对名称碰撞重试，写入/替换/清理失败路径只处理本次已知临时文件。
 
 当前阻塞：
 
-- 无远程仓库、认证、Windows CI、project-doctor 或包验收阻塞；尚缺同机 host/agent 成对快照。
+- snapshot 修复尚未提交/推送，因此还没有包含该修复的远程 CI 证据；GitHub CLI 已认证，现无远程仓库或认证阻塞。
 - 尚未获得同一台机器在宿主终端与 Agent 实际终端生成的成对快照，因此不能用当前证据断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
-- 准备并执行 host/agent 成对快照采集，再根据真实差异决定下一诊断切片。
+- 提交并推送 snapshot 修复，重跑 Windows CI，确认拒绝写入目录快速退出且包验收不回归。
+- 通过远程复验后，准备并执行 host/agent 成对快照采集，再根据真实差异决定下一诊断切片。
 - 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- `project_doctor.py`、`reporting.py`、`cli.py`、项目测试、CLI help 测试和本次状态文档；未提交/推送。
+- `snapshot.py`、snapshot/CLI 测试和本次状态文档；未提交/推送。此前 `project-doctor` 已在 `4b12475` 推送。
 
 ## 关键决策
 
@@ -169,6 +174,7 @@
 | SupportReport v2 只组合本地结果并纯推导 next_checks | 避免分享报告触发写入、联网、登录、重复 Agent 探针或隐式自动修复 | 2026-08-24 |
 | CLI help 使用 ASCII 并关闭 Rich Unicode 格式 | 兼容严格 cp1252 的 Windows 旧代码页控制台；不改变实际报告和中文文档 | 2026-08-24 |
 | project-doctor 使用固定第一层 marker 和独立 v1 报告 | 在不读项目内容、不递归、不改变既有 scan/support/snapshot schema 的前提下推导本地工具链 | 2026-08-24 |
+| snapshot 写入使用有界 `O_EXCL` 临时文件 | Codex 工作区拒绝写入时必须快速返回；只对名称碰撞重试，避免 `NamedTemporaryFile` 的不可控等待，不扫描目录或引入哈希 | 2026-08-24 |
 
 ## 验证证据
 
@@ -200,14 +206,18 @@
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
 | 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | project-doctor GitHub Windows CI | [run 32696172691](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) | Python 3.12/3.14 的 145 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | 最新 main GitHub Windows CI | [run 32696504545](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) | 已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和干净环境安装全部通过；不包含当前 snapshot 修复 |
 | 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
 | 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件 |
+| 2026-08-24 | snapshot/CLI 定向回归 | `python -B -m pytest tests/test_snapshot.py tests/test_cli.py -q -p no:cacheprovider` | 28 passed；覆盖权限首错单次失败、三次名称碰撞、碰撞后成功、竞争输出保留、write/fsync/replace/fdopen 失败清理和 CLI 退出 2 |
+| 2026-08-24 | snapshot 静态检查 | `python -m ruff check src/win_agent_preflight/snapshot.py tests/test_snapshot.py tests/test_cli.py --no-cache` | All checks passed |
+| 2026-08-24 | snapshot P1/P2 全量回归 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 158 passed；父路径为普通文件时 force/non-force 均为 `cannot write snapshot`，link 竞争仍保留 `output already exists`，主失败叠加 cleanup 失败及 non-force 提交后删除失败均保留残留并报告；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定功能提交：`project-doctor` `4b12475`，已推送并通过 Windows CI run `32696172691`。
+- 最近稳定功能提交：`project-doctor` `4b12475`，已推送；此前已推送内容通过 Windows CI run `32696504545`。snapshot 修复尚未提交。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
@@ -216,7 +226,7 @@
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
-- Windows CI `32696172691` 已确认包括 project-doctor 在内的 Python 3.12/3.14 矩阵和远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
+- Windows CI `32696504545` 已确认此前已推送内容包括 project-doctor 在内的 Python 3.12/3.14 矩阵和远程 sdist/wheel 安装验收通过；本次 snapshot 写入修复尚未进入该 run，本机仍只安装并直接验证了 Python 3.12.7。
 - `project-doctor` 只检查固定第一层十个 basename，marker 语义不等同于构建系统完整识别；冲突、孤立 lockfile、yarn/bun lockfile 和 marker lstat 异常会保守返回 `unknown`，未列入固定表的文件会忽略。它不读取 marker 内容、不递归、不以 target 作为工具 cwd。
 - `agent-doctor` 只描述当前进程这一次 PATH/launcher 探测上下文；同一 Agent 可能依次尝试多个候选；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
 - WindowsApps alias 或 lstat 受限会保守报告为 `access_denied`/结构化不可用状态，不把它当作命令缺失；其他进程或权限变化可能使后续启动结果不同。

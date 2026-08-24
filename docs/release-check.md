@@ -4,7 +4,7 @@
 
 ## 环境
 
-- 本机当前已验证 Python 3.12；最新 main Windows CI run `32693695834` 已完整验证已推送内容的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
+- 本机当前已验证 Python 3.12；此前已推送内容的最新 main Windows CI run `32696504545` 已完整验证 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job；当前 snapshot 写入修复尚未包含在该 run。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
 
@@ -58,7 +58,7 @@ Remove-Item Env:PYTHONIOENCODING
 
 ## project-doctor 本地边界
 
-`project-doctor` 已包含在 Windows CI run `32696172691`，Python 3.12/3.14 测试与后续包验收均通过。真实仓库根的本地验证命令为：
+`project-doctor` 已包含在此前的 Windows CI run `32696504545`，Python 3.12/3.14 测试与后续包验收均通过。真实仓库根的本地验证命令为：
 
 ```powershell
 python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1
@@ -66,8 +66,14 @@ python -B -m win_agent_preflight project-doctor --target . --json --pretty --tim
 
 该命令只读取第一层十个固定 marker 并探测推导工具的 `--version`，不写文件、不递归、不打开 marker 内容，也不以目标目录作为工具 cwd。marker 的权限异常、symlink、reparse point 或非普通项会进入首项 `project.markers` 的 `unknown`，而不是把有效 target 判为输入错误；未列入固定表的文件直接忽略。
 
+## snapshot 写入边界
+
+快照写出在目标父目录内创建本次 UUID 临时文件，使用 `O_EXCL` 且最多尝试三个名称；只有 `FileExistsError` 会触发下一名称，权限或其他写入错误应立即以 CLI 退出码 2 返回。写入通过 UTF-8 `fdopen`、write、flush 和 fsync 完成，`--force` 使用 replace，默认模式使用 link 后 unlink；失败只清理本次已知临时文件，不扫描目录或处理历史 `.tmp`。
+
+本地拒绝写入边界可用一个明确的输出路径复验：命令应在 capture 后快速退出 2，不能产生输出或临时残留。可写 `%TEMP%` 目录则应能写出并由 `load_snapshot` 读取；这两类验证只代表当前进程和目录上下文，不代表其他 Agent 上下文。
+
 ## CI 边界
 
-CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；修复提交 `affa4a3` 对应的最新 main run [`32693695834`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693695834) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。
+CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；随后已推送内容的 main run [`32696504545`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。本次 snapshot 写入修复待提交后重跑 CI。
 
 GitHub CLI 已认证，远程包验收已有成功证据。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。

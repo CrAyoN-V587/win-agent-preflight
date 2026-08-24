@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：`project-doctor` 已提交为 `4b12475` 并推送；最新 main CI run `32696172691` 全部通过。
+- 当前阶段：snapshot 写入快速失败修复已在本地完成，尚未提交；此前已推送内容的最新 main CI run `32696504545` 全部通过。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：本地完整回归 145 项、Ruff、cp1252 help 子进程、project-doctor 定向测试和真实仓库根命令均已通过；`32696172691` 已完成 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装。
+- 最近验证：snapshot/CLI 定向回归 30 项、P1/P2 后全量回归 158 项、Ruff、以及真实拒绝写入目录/可写 `%TEMP%` 边界已通过；此前已推送内容的 `32696504545` 已完成 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装，但不包含本次 snapshot 修复。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：准备并采集 host/agent 成对快照；GitHub CLI 已认证，无需再次认证。
+- 下一步：提交/推送 snapshot 修复并重跑 Windows CI；通过后再采集 host/agent 成对快照。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -144,12 +144,22 @@
 - [x] 真实仓库根 `project-doctor --target . --json --pretty --timeout 1` 退出 0，识别 `pyproject.toml` 并仅探测 python，工作区无变化。
 - [x] Windows CI run `32696172691` 已验证 project-doctor、既有回归和 package job。
 
+## 阶段 11：snapshot 写入快速失败
+
+状态：本地实现和回归验证完成，尚未提交/推送；远程验证待下一次 CI。
+
+- [x] 删除 `tempfile.NamedTemporaryFile`，改用目标父目录内最多三个 UUID 临时名和单次 `os.open(O_WRONLY|O_CREAT|O_EXCL|O_BINARY, 0o600)`。
+- [x] 只对 `FileExistsError` 重试；`PermissionError`/其他 `OSError` 第一次即转为 `SnapshotError`，避免拒绝写入目录中无界等待或高 CPU。
+- [x] 保持 UTF-8、`newline="\n"`、write/flush/fsync，以及 force 的 replace、非 force 的 link 后 unlink 语义；fdopen 构造失败防止文件描述符泄漏。
+- [x] 所有已知失败只清理本次成功创建的临时文件，不扫描目录、不处理历史残留；测试覆盖权限首错、三次碰撞、碰撞后成功、竞争输出、write/fsync/replace/fdopen 失败和 CLI 退出 2。
+- [x] 已推送内容的 main CI run `32696504545` 绿色，但该 run 不包含本次修复；待提交后重跑 Windows CI。
+
 ## 暂停检查点
 
-- 当前阶段：project-doctor 已提交/推送并通过 Windows CI run `32696172691`。
-- 最近验证：project-doctor 定向测试、真实仓库根命令、完整本地回归 145 项、Ruff、Python 3.12/3.14 矩阵和 package job 均通过。
+- 当前阶段：snapshot 写入修复已在本地完成，待提交/推送；此前已推送内容通过 Windows CI run `32696504545`。
+- 最近验证：snapshot/CLI 定向测试、158 项完整回归、Ruff、拒绝写入目录快速失败和 `%TEMP%` 快照写出/读取均通过。
 - 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
-- 下一步：采集第一组成对快照；GitHub CLI 已认证，无需再次认证。
+- 下一步：运行完整回归并提交/推送 snapshot 修复，重跑 CI；随后采集第一组成对快照。GitHub CLI 已认证，无需再次认证。
 - 恢复命令：
 
 ```powershell
@@ -199,14 +209,21 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
 | 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | project-doctor GitHub Windows CI | [run 32696172691](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) | Python 3.12/3.14 的 145 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | 最新 main GitHub Windows CI | [run 32696504545](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) | 已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建和干净环境安装全部通过；不包含当前 snapshot 修复 |
 | 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
 | 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件 |
+| 2026-08-24 | snapshot/CLI 定向回归 | `python -B -m pytest tests/test_snapshot.py tests/test_cli.py -ra -p no:cacheprovider` | 30 passed；覆盖父路径普通文件分类、权限首错单次失败、三次名称碰撞、碰撞后成功、竞争输出保留、write/fsync/replace/fdopen/cleanup 失败和 CLI 退出 2 |
+| 2026-08-24 | snapshot 全量回归与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 154 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
+| 2026-08-24 | snapshot P1/P2 回归 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 158 passed；父路径为普通文件时 force/non-force 均为 `cannot write snapshot`，link 竞争仍保留 `output already exists`，主失败叠加 cleanup 失败及 non-force 提交后删除失败均保留残留并报告；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
+| 2026-08-24 | snapshot 拒绝写入边界 | 两次 `snapshot` 指向项目 `.artifacts` 的唯一输出路径，`--timeout 1` | 两次均在 3.7–4.4 秒内退出 2；`Permission denied`；输出不存在；已知 `.tmp` 残留为 0 |
+| 2026-08-24 | snapshot 可写目录边界 | 唯一 `%TEMP%` 目录中运行 `snapshot`，随后 `load_snapshot` 读取并显式清理该目录 | 写出退出 0，`load_snapshot` 读取 `temp-check 1 environment_snapshot`；临时文件 0；目录已清理 |
 
 ## 下一里程碑验收
 
 - [x] 已推送内容的 GitHub Windows runner Python 3.12 与 3.14 矩阵 job 全部通过；
 - [x] 已推送内容的 package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
 - [x] project-doctor 的 Windows CI 已验证该命令的测试、help 和包验收；
+- [ ] snapshot 写入快速失败修复提交/推送后重跑 Windows CI，并确认拒绝写入目录的退出边界；
 - 用户在宿主与实际 Agent 上分别生成脱敏快照并完成 compare；
 - 不增加自动发布、缓存、签名或额外平台基础设施。

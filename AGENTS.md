@@ -6,7 +6,7 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor`、`support-report` v2、`project-doctor` 和 Windows CI/包验收均已有稳定远程验证。
+- 当前阶段：既有 `scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor`、`support-report` v2、`project-doctor` 和 Windows CI/包验收已有稳定远程验证；snapshot 写入快速失败修复已在本地实现，待远程复验。
 
 ## 环境和命令
 
@@ -21,6 +21,7 @@
 ## 项目约定
 
 - 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集和 Agent launcher lstat；`checks.py` 诊断分类与预计算检查注入；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`support_report.py` 独立 SupportReport v2 组合和纯 `next_checks` 推导；`project_doctor.py` 独立 ProjectDoctorReport v1、固定第一层 marker 推导和工具版本探测；`reporting.py` 输出；`cli.py` 参数与编排。
+- `snapshot.py` 的写入只使用目标父目录内本次生成的 UUID 临时名和一次 `O_EXCL` 创建；最多重试三次名称碰撞，其他写入错误立即失败。写入完成后按 `--force` 选择替换或硬链接，失败时只清理本次已知临时文件，不扫描目录。
 - 代码风格：Python 类型标注、不可变数据模型优先；公共序列化字段使用稳定 snake_case。
 - 数据和配置位置：扫描只读取当前环境，不保存配置和凭据。
 - 不得修改的上游或生成文件：不触碰工作区其他项目；不创建项目级 `.codex`。
@@ -36,6 +37,7 @@
 - 外部命令只能通过 `Runner` 执行，并且必须有超时。
 - `scan` v1 JSON 和退出语义保持稳定；快照只内嵌已有 scan，不另造检查协议。
 - 快照默认不覆盖已有输出，比较输入错误/版本错误/类型错误退出 2。
+- 快照写出使用有界临时文件创建：单次 `O_EXCL` 创建只对 `FileExistsError` 重试，最多三个 UUID 名称；权限或其他写入错误快速返回 `SnapshotError`，不扫描目录或后台重试。
 - 不联网、不修改 PATH、注册表、执行策略或 Agent 配置。
 - `workspace-probe` 只接受显式 `--target` 与 `--allow-write`；结论只适用于一次命令、一个目标目录和当前进程上下文。
 - `workspace-probe` 只创建目标直接子目录中的本次随机探针；按 Windows 对象身份复核本次已知两个文件和空目录后做路径级清理，不遍历目标、不递归删除、不处理历史残留。

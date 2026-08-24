@@ -6,7 +6,7 @@ import json
 import ntpath
 import os
 import sys
-import tempfile
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -21,6 +21,8 @@ from .windows import RegistryValueReader, redact_text
 SNAPSHOT_SCHEMA_VERSION = 1
 SNAPSHOT_TOOL = "win-agent-preflight"
 SNAPSHOT_KIND = "environment_snapshot"
+_SNAPSHOT_TEMP_ATTEMPTS = 3
+_SNAPSHOT_TEMP_SUFFIX = ".tmp"
 
 
 class SnapshotError(ValueError):
@@ -158,6 +160,8 @@ def write_snapshot(
     if output.exists() and output.is_dir():
         raise SnapshotError(f"output is a directory: {output}")
     temporary: Path | None = None
+    pending_error: SnapshotError | None = None
+    pending_cause: BaseException | None = None
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
         text = json.dumps(
@@ -166,16 +170,24 @@ def write_snapshot(
             indent=2 if pretty else None,
             separators=None if pretty else (",", ":"),
         )
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="\n",
-            dir=output.parent,
-            prefix=f".{output.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
+        temporary, descriptor = _open_snapshot_temporary(output)
+        handle = None
+        try:
+            handle = os.fdopen(
+                descriptor,
+                "w",
+                encoding="utf-8",
+                newline="\n",
+            )
+        except BaseException:
+            # fdopen normally does not take ownership when construction fails;
+            # closing defensively also covers implementations that do.
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+            raise
+        with handle:
             handle.write(text + "\n")
             handle.flush()
             os.fsync(handle.fileno())
@@ -186,19 +198,56 @@ def write_snapshot(
             # A hard link can only be created when the destination does not
             # exist, so this preserves no-overwrite semantics even if another
             # process creates the destination after the initial existence check.
-            os.link(temporary, output)
-            temporary.unlink()
-            temporary = None
-    except FileExistsError as exc:
-        raise SnapshotError(f"output already exists; pass --force to replace: {output}") from exc
+            try:
+                os.link(temporary, output)
+            except FileExistsError as exc:
+                pending_error = SnapshotError(
+                    f"output already exists; pass --force to replace: {output}"
+                )
+                pending_cause = exc
+            else:
+                temporary.unlink()
+                temporary = None
     except OSError as exc:
-        raise SnapshotError(f"cannot write snapshot: {exc}") from exc
+        pending_error = SnapshotError(f"cannot write snapshot: {exc}")
+        pending_cause = exc
     finally:
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+            except OSError as exc:
+                cleanup_error = SnapshotError(
+                    f"cannot clean temporary snapshot {temporary}: {exc}"
+                )
+                if pending_error is None:
+                    pending_error = cleanup_error
+                else:
+                    pending_error = SnapshotError(
+                        f"{pending_error}; {cleanup_error}"
+                    )
+                    pending_cause = pending_cause or exc
+    if pending_error is not None:
+        if pending_cause is None:
+            raise pending_error
+        raise pending_error from pending_cause
+
+
+def _open_snapshot_temporary(output: Path) -> tuple[Path, int]:
+    """Create one private temporary file, retrying only its name collisions."""
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    for _ in range(_SNAPSHOT_TEMP_ATTEMPTS):
+        temporary = output.parent / f".{output.name}.{uuid.uuid4().hex}{_SNAPSHOT_TEMP_SUFFIX}"
+        try:
+            descriptor = os.open(temporary, flags, 0o600)
+        except FileExistsError:
+            continue
+        except OSError as exc:
+            raise SnapshotError(f"cannot create temporary snapshot: {exc}") from exc
+        return temporary, descriptor
+    raise SnapshotError(
+        "cannot create temporary snapshot: three temporary-name collisions"
+    )
 
 
 def load_snapshot(path: Path) -> EnvironmentSnapshot:

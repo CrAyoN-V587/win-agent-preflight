@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`project-doctor` 提交 `4b12475` 已推送，最新 main CI run [`32696172691`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696172691) 已全部通过：Python 3.12/3.14 的 145 项测试、严格 cp1252 帮助、Windows 工作区探针、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传均完成。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`project-doctor` 提交 `4b12475` 已推送；此前已推送内容的最新 main CI run [`32696504545`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32696504545) 已通过。当前 snapshot 写入快速失败修复仍是本地未提交改动，待远程 CI 复验。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -58,13 +58,13 @@ py -3.12 -m build --sdist --wheel
 
 ## CI 与包验收
 
-`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；最新 main run `32696172691` 已包含 `project-doctor` 并完成整条流水线和制品上传。
+`.github/workflows/ci.yml` 只使用 Windows runner，在推送 `main`、面向 `main` 的 Pull Request 或手动触发时运行。测试矩阵为 Python 3.12/3.14，不启用 Actions 缓存；两个版本运行完整测试、CLI 帮助和 `RUNNER_TEMP` 工作区探针，Ruff 只在 Python 3.12 上运行。测试成功后，Python 3.12 打包 job 会构建恰好一个 sdist 和一个 wheel，并分别安装到干净虚拟环境运行 CLI；非 PR 运行上传保留 7 天的构建制品。首次 run `32691934171` 暴露根帮助的 cp1252 编码问题；随后已推送内容的 main run `32696504545` 已完成整条流水线和制品上传，但不包含当前 snapshot 写入修复。
 
-这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help、`project-doctor` 和 sdist/wheel 已在 `32696172691` 中通过。
+这套 CI 只做项目测试和包安装验收，不自动发布 PyPI、不创建 Release、不生成签名/SBOM，也不做跨平台构建。Python 3.12/3.14、严格 cp1252 help、`project-doctor` 和 sdist/wheel 已在 `32696504545` 中通过；本次 snapshot 修复需推送后重新验证。
 
 只检查当前项目实际需要的工具尚未实现；首阶段扫描固定集合：`python`、`git`、`node`、`npm`、`npm.cmd`、`npm.ps1`、`pnpm`、`codex`、`claude`、`dsh`。
 
-`snapshot` 的 `--label` 和 `--output` 必填；输出目录会创建，已有文件默认不会覆盖，需显式加 `--force`。即使嵌入的 `scan` 有 `fail`，快照仍会写出并以 0 退出；写入或输入错误以 2 退出。
+`snapshot` 的 `--label` 和 `--output` 必填；输出目录会创建，已有文件默认不会覆盖，需显式加 `--force`。写出时只在目标父目录创建本次 UUID 临时文件，使用一次 `O_EXCL` 打开并最多对三次名称碰撞重试；权限或其他写入错误立即返回 `SnapshotError`，不扫描目录、不后台重试。完成后 `--force` 使用替换，默认模式使用硬链接后删除临时文件；失败只清理本次已知临时文件。即使嵌入的 `scan` 有 `fail`，快照仍会写出并以 0 退出；写入或输入错误以 2 退出。
 
 `compare` 的退出码为：等价 0、有实质差异 1、输入/版本/类型错误 2。比较会忽略 label、采集时间、summary 和 candidate_count，并对 Windows 路径、PATH/PATHEXT、候选集合和 evidence 做规范化。
 

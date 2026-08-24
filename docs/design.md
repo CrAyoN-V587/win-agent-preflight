@@ -66,7 +66,7 @@ cli.py
 
 快照顶层字段为 `schema_version`、`tool`、`kind`、`label`、`captured_at`、`environment` 和 `scan`。`environment` 只保存 `cwd`、`sys_executable`、`platform`、PATH 集合和 PATHEXT 集合；不保存完整环境变量。`scan` 使用已有 v1 JSON，不另造第二套检查模型。
 
-解析器只接受 v1，拒绝顶层或内嵌 scan 的更高版本及已知字段类型错误，未知字段忽略。快照写出时父目录可创建，默认不覆盖已有文件，`--force` 才覆盖；扫描失败不会阻止快照写出。
+解析器只接受 v1，拒绝顶层或内嵌 scan 的更高版本及已知字段类型错误，未知字段忽略。快照写出时父目录可创建，默认不覆盖已有文件，`--force` 才覆盖；扫描失败不会阻止快照写出。写出使用目标父目录内本次生成的 UUID 临时名，通过一次 `os.open(O_WRONLY|O_CREAT|O_EXCL|O_BINARY, 0o600)` 创建，最多尝试三个名称且只对 `FileExistsError` 重试；权限或其他 `OSError` 立即转为 `SnapshotError`。文件经 UTF-8 `os.fdopen` 写入、flush 和 fsync 后，`--force` 使用 `os.replace`，默认模式使用 `os.link` 后删除临时文件；失败时只清理本次已知临时文件，不扫描目录、不递归、不后台重试。
 
 ## Compare 规范化
 
@@ -131,3 +131,9 @@ cli.py
 报告固定六项并保持顺序：`workspace.create_directory`、`workspace.write_file`、`workspace.read_file`、`workspace.rename_file`、`workspace.delete_file`、`workspace.cleanup`。`successful` 仅在六项均为 `pass` 且 `residual_paths` 为空时为真；残留只使用相对目标目录的本次已知路径。读取不一致不会阻止后续重命名/删除尝试；创建或写入失败时依赖步骤为 `unknown`。异常证据只保留类型、`winerror`（若有）和脱敏截断消息，不回显探针内容。
 
 清理不使用 `shutil.rmtree`，不遍历目标、不处理历史目录；清理前若探针目录是重解析点或状态不明则不进入，并以相对路径报告残留。普通能力失败退出 1，输入拒绝退出 2，Ctrl-C 尽力清理后由 CLI 输出部分报告并退出 130。该功能不联网、不提权、不修改 ACL、PATH、注册表、执行策略或 Agent 配置。
+
+## 第十一里程碑：snapshot 写入快速失败
+
+Codex 工作区对项目目录的写入曾以 WinError 5 被拒绝；旧的 `NamedTemporaryFile` 路径在该边界可能表现为高 CPU 或长时间无结果。修复后的 `snapshot` 写出不再依赖 `tempfile`：只在输出父目录生成最多三个 UUID 临时名，并对每个名称进行一次 `O_EXCL` 创建。只有名称碰撞重试，第一次 `PermissionError` 或其他 `OSError` 立即返回 `SnapshotError`，CLI 返回 2。
+
+临时文件成功创建后以 UTF-8、`newline="\n"` 写入，执行 write、flush、fsync；强制覆盖仍用 `os.replace`，默认不覆盖仍用 `os.link` 后删除临时文件。任何已知失败只删除本次成功创建的临时文件，不遍历目录、不处理历史 `.tmp`、不后台重试；`fdopen` 构造失败也会关闭已取得的文件描述符。最新已推送内容的 main CI run `32696504545` 绿色，但不包含本次本地修复，需提交后重新远程验证。
