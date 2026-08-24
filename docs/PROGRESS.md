@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：CLI help 的 cp1252 兼容修复已提交为 `affa4a3` 并推送；Windows CI run `32693383743` 全部通过。
-- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
-- 最近验证：根命令和全部子命令的严格 cp1252 help 子进程测试、完整 114 项测试与 Ruff 已通过；Windows CI 已完成 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装。
-- 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：采集 host/agent 成对快照，再根据真实差异决定下一里程碑；GitHub CLI 已认证，无需再次认证。
+- 当前阶段：`project-doctor` 本地实现与验证，尚未提交/推送；cp1252 修复已提交为 `affa4a3`，最新 main CI run `32693695834` 全部通过。
+- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
+- 最近验证：本地完整回归 145 项、Ruff、cp1252 help 子进程、project-doctor 定向测试和真实仓库根命令均已通过；`32693695834` 已完成已推送内容的 Python 3.12/3.14 测试、help、workspace probe、sdist/wheel 构建和两个干净环境安装，但不包含当前 project-doctor。
+- 未完成项：审阅/推送 project-doctor 并由后续 CI 验证；用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
+- 下一步：完成 project-doctor 审阅后提交/推送并重跑 CI；随后采集 host/agent 成对快照。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -127,17 +127,29 @@
 
 - [x] 所有 Typer 公开 help/docstring 改为纯 ASCII；实际报告输出和中文文档保持原约定。
 - [x] 关闭 Rich Unicode 帮助边框，避免严格 cp1252 控制台在子命令 help 上解码失败。
-- [x] 新增真实 subprocess smoke test：根命令和全部 6 个子命令在 `PYTHONIOENCODING=cp1252:strict` 下严格解码、退出 0，且不触发操作或在临时目录写文件。
+- [x] 新增真实 subprocess smoke test：根命令和全部子命令在 `PYTHONIOENCODING=cp1252:strict` 下严格解码、退出 0，且不触发操作或在临时目录写文件。
 - [x] CI 根命令及 sdist/wheel 安装后的 help smoke 显式设置 `PYTHONIOENCODING=cp1252:strict`；发布复验文档同步。
 - [x] 全量回归 114 项测试、Ruff 和 diff check 已通过；本地修复未改变报告输出。
 - [x] GitHub Windows runner 已确认 Python 3.12/3.14 的 cp1252 help smoke，后续 package job 已完成两个制品的干净环境安装验收。
 
+## 阶段 10：project-doctor 第一层项目工具诊断
+
+状态：本地实现与定向验证完成，待审阅、提交和远程 CI
+
+- [x] 新增独立 `ProjectDoctorReport v1`，固定工具顺序为 python、node、npm、pnpm、cmake；不改变 scan/support/snapshot schema。
+- [x] 仅接受显式 `--target`；target 拒绝 symlink、reparse point、非普通项；marker 异常累计为脱敏 unknown 并继续扫描；不 glob、不递归、不打开 marker 内容。
+- [x] 仅检查十个固定 basename：`pyproject.toml`/`requirements.txt` 推导 python；`package.json` 推导 node，npm/pnpm lockfile 分别推导对应工具；npm+pnpm 冲突只推导 node 并标记 unknown；孤立/yarn/bun lockfile 标记 unknown，未列入固定表的项目文件忽略；`CMakeLists.txt` 推导 cmake。
+- [x] 仅对推导工具通过现有 Runner 执行 `--version`，不把 target 作为 cwd；必需工具缺失、超时或启动失败为 fail，路径和异常脱敏。
+- [x] 报告 checks 固定以 `project.markers` 开头，再按工具顺序排列；覆盖 marker 组合、npm-shrinkwrap/锁文件去重、冲突、孤立、ignored marker、PermissionError/OSError、reparse/symlink/非普通项、固定顺序、边界/不递归、无内容读取、工具调用/required_by、脱敏、JSON/Console、退出码和 cp1252 help。
+- [x] 真实仓库根 `project-doctor --target . --json --pretty --timeout 1` 退出 0，识别 `pyproject.toml` 并仅探测 python，工作区无变化。
+- [ ] 推送后由 Windows CI 验证 project-doctor；最新 main CI `32693695834` 不包含本里程碑。
+
 ## 暂停检查点
 
-- 当前阶段：CLI help cp1252 修复已提交并推送；Windows CI run `32693383743` 全部通过。
-- 最近验证：严格 cp1252 help smoke、完整 114 项测试、Ruff、Python 3.12/3.14 矩阵、workspace probe、sdist/wheel 构建与两个干净环境安装均通过。
-- 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
-- 下一步：采集第一组成对快照；GitHub CLI 已认证，无需再次认证。
+- 当前阶段：project-doctor 已本地实现，尚未提交/推送；cp1252 修复已提交并通过最新 Windows CI run `32693695834`。
+- 最近验证：project-doctor 定向测试、真实仓库根命令、完整本地回归 145 项、Ruff 与 `32693695834` 的已推送内容验证均通过；远程 CI 尚未验证 project-doctor。
+- 未完成项：审阅/提交/推送 project-doctor 并完成后续 CI，以及用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
+- 下一步：提交/推送 project-doctor 后重跑 CI；GitHub CLI 已认证，无需再次认证。
 - 恢复命令：
 
 ```powershell
@@ -182,14 +194,19 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；沙箱中暴露的真实失败为 PyPI 网络权限 |
 | 2026-08-24 | 第八里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 113 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | SupportReport v2 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；顶层 `schema_version=2`、`kind=support_report`；内嵌 scan/Agent Doctor 为 v1；`offline=true`、`workspace_probe_run=false`；本次推导 1 项 next check |
-| 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部 6 个子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
+| 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
 | 2026-08-24 | cp1252 修复全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 114 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
 | 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | 最新 main GitHub Windows CI | [run 32693695834](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693695834) | 已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过；不包含 project-doctor |
+| 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
+| 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
+| 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件；当前实现尚未远程验证 |
 
 ## 下一里程碑验收
 
-- [x] GitHub Windows runner 的 Python 3.12 与 3.14 矩阵 job 全部通过；
-- [x] package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
+- [x] 已推送内容的 GitHub Windows runner Python 3.12 与 3.14 矩阵 job 全部通过；
+- [x] 已推送内容的 package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
+- [ ] 推送 project-doctor 后，新的 Windows CI 仍需验证该命令的测试、help 和包验收；
 - 用户在宿主与实际 Agent 上分别生成脱敏快照并完成 compare；
 - 不增加自动发布、缓存、签名或额外平台基础设施。

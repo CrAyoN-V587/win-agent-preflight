@@ -13,11 +13,14 @@ from .agent_doctor import (
 )
 from .checks import scan_environment
 from .compare import render_compare_console, render_compare_json
+from .project_doctor import ProjectDoctorInputError, run_project_doctor
 from .reporting import (
     render_agent_doctor_console,
     render_agent_doctor_json,
     render_console,
     render_json,
+    render_project_doctor_console,
+    render_project_doctor_json,
     render_support_report_console,
     render_support_report_json,
     render_workspace_probe_console,
@@ -154,6 +157,29 @@ def support_report(
         else render_support_report_console(report)
     )
     if report.errors:
+        raise typer.Exit(code=1)
+
+
+@app.command("project-doctor")
+def project_doctor(
+    target: Path = typer.Option(..., "--target", help="Existing project directory"),
+    json_output: bool = typer.Option(False, "--json", help="Print standalone v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON"),
+    timeout: float = typer.Option(5.0, min=0.1, help="Timeout per version probe in seconds"),
+) -> None:
+    """Infer required local tools from fixed first-level project markers."""
+
+    try:
+        report = run_project_doctor(target, timeout=timeout)
+    except ProjectDoctorInputError as exc:
+        typer.echo(f"project-doctor error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_project_doctor_json(report, pretty=pretty)
+        if json_output
+        else render_project_doctor_console(report)
+    )
+    if not report.successful:
         raise typer.Exit(code=1)
 
 

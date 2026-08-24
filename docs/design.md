@@ -11,6 +11,7 @@ cli.py
   ├─ checks.py（诊断分类与扫描编排）
   ├─ agent_doctor.py（AgentDoctorReport v1 与最小版本探针）
   ├─ support_report.py（SupportReport v2、离线组合采集与纯 next_checks 推导）
+  ├─ project_doctor.py（ProjectDoctorReport v1、第一层 marker 推导与工具版本探测）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
        ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
@@ -25,6 +26,7 @@ cli.py
 - `checks.py` 将事实转换为 `pass`、`warning`、`fail`、`unknown`，不负责 CLI 参数或输出格式。
 - `agent_doctor.py` 使用独立状态和 v1 报告，不复用 `CheckResult`，也不改变 `scan`、`snapshot` 或 `workspace-probe` schema。
 - `support_report.py` 先收集 Agent Doctor，再将其结果映射为既有 `CheckResult` 并注入 `scan_environment`；Agent Doctor 可依次尝试同一 Agent 的多个候选，每个候选最多一次，scan 不再重复探测三个 Agent，不改变 standalone `scan` 的 schema 或行为。
+- `project_doctor.py` 使用独立 v1 报告，但复用 `discover_command`、`Runner` 和 `CheckResult`；它只对显式 target 的固定第一层 marker 做 `lstat`，不读取内容、不递归、不改变 `scan`、`support-report` 或 `snapshot` schema。
 - `cli.py` 负责解析子命令；既有命令的调用路径和 v1 JSON/退出语义保持不变。
 - `reporting.py` 只渲染已有结果，不再次运行命令。
 
@@ -99,6 +101,24 @@ cli.py
 `derive_next_checks(scan, doctor)` 是纯函数，只读取已有 `ScanReport` 与 `AgentDoctorReport`，不解析自由文本、不调用 Runner、不运行命令、不读取环境。触发顺序固定为：Agent `access_denied`（按 `codex`、`claude`、`dsh`）、Agent `version_probe_failed`（同顺序）、PowerShell 裸 `npm` warning、PATH refresh warning、PATH refresh unknown。每个 `(code, target)` 只保留一项。
 
 允许的 Agent 建议为 `agent.launcher_access_denied` 和 `agent.version_probe_failed`：前者的 `manual_commands` 为 `Get-Command <agent> -All` 与 `<agent> --version`，后者只包含 `<agent> --version`；允许的 npm 建议为 `powershell.npm_bare_command_failed`，命令为 `Get-Command npm -All` 与 `npm.cmd --version`。PATH 建议分别为 `windows.path_refresh_pending`/`windows.path_refresh_unknown`，且 `manual_commands` 只包含 `agent-preflight scan --json --pretty`；摘要明确提示重开终端并使用标准 Windows PowerShell。`command_not_found`、`resolved_but_not_executable`、`usable` 以及 scan 中注入的 Agent checks 不产生建议。Console 显示 next checks；没有时输出 `Next checks: none.`。
+
+## 第十里程碑：project-doctor
+
+`project-doctor` 是独立的 `ProjectDoctorReport v1`，回答“根据项目根目录第一层固定 marker，当前 Windows 进程需要哪些本地工具，以及这些工具能否完成 `--version` 探测”。它必须显式提供 `--target`；target 必须是已存在的普通目录，不能是 symlink 或 reparse point。marker 只检查固定表中的普通项；marker 的 PermissionError/OSError、symlink、reparse point 或非普通项不会中止扫描，而是累积脱敏 `unknown` 原因并继续处理其他可靠 marker。验证阶段只使用 `lstat`，不 glob、不遍历目录、不递归、不打开 marker 内容，也不把 target 传给 Runner 的 `cwd`。
+
+固定 marker 与推导关系如下：
+
+| 第一层 marker | 推导工具 | 备注 |
+| --- | --- | --- |
+| `pyproject.toml` 或 `requirements.txt` | `python` | 两者同时存在只探测一次 |
+| `package.json` | `node` | npm/pnpm 由 lockfile 再决定 |
+| `package-lock.json` 或 `npm-shrinkwrap.json` | `npm` | 没有 `package.json` 时是孤立 lockfile，整体 unknown |
+| `pnpm-lock.yaml` | `pnpm` | 没有 `package.json` 时是孤立 lockfile，整体 unknown |
+| `package.json` + npm lock + pnpm lock | 仅 `node` | npm/pnpm 冲突，marker 状态 unknown |
+| `yarn.lock`、`bun.lock`、`bun.lockb` | 无新增工具 | 孤立或与 package.json 并存时 marker 状态 unknown；若同时有 package.json 仍可探测 node |
+| `CMakeLists.txt` | `cmake` | 可与其他明确 marker 组合 |
+
+未列入该十项固定表的项目文件（例如 `Makefile`、`Cargo.toml`、`go.mod`）直接忽略，不否定其他可靠 marker。报告 checks 固定以 `project.markers` 开头：marker clear 为 pass，marker unknown 为 unknown；随后按 `python`、`node`、`npm`、`pnpm`、`cmake` 顺序排列工具 checks。每个工具 check 的 details 带固定有序 `required_by` marker 名称。工具只调用既有命令发现与 Runner 的 `--version`；必需工具缺失、超时、启动异常或非零退出都生成带证据的 `CheckResult` fail，候选路径和异常按 `%USERPROFILE%` 规则脱敏。报告 `successful` 只有在至少推导出一个工具且所有 checks pass 时为真。CLI 退出 0 表示明确且工具可用，1 表示有效 target 但 marker unknown 或工具失败，2 表示平台/target/timeout 输入错误。当前实现已完成本地独立审阅，待后续 CI 验证。
 
 ## 第四里程碑：workspace-probe
 

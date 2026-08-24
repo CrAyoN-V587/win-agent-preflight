@@ -6,13 +6,13 @@
 
 - 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor` 和 Windows CI/包验收已稳定；第八里程碑将 `support-report` 升级为 v2 并增加纯 `next_checks`。
+- 当前阶段：`scan`、`snapshot`/`compare`、只读注册表 PATH 刷新诊断、`workspace-probe`、`agent-doctor`、`support-report` v2 和 Windows CI/包验收已稳定；`project-doctor` 已完成本地实现与独立审阅，尚未纳入远程 CI。
 
 ## 环境和命令
 
 - 安装/准备：`python -m pip install -e ".[dev]"`
 - 构建验收：`python -m build --sdist --wheel`（完整步骤见 `docs/release-check.md`）
-- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight support-report --json`
+- 运行：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write`、`agent-preflight agent-doctor --json`、`agent-preflight support-report --json`、`agent-preflight project-doctor --target . --json --pretty`
 - 针对性测试：`python -B -m pytest -q -p no:cacheprovider`
 - 完整测试：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 - 构建或检查：`python -m ruff check . --no-cache`；打包验收不得替代测试。
@@ -20,7 +20,7 @@
 
 ## 项目约定
 
-- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集和 Agent launcher lstat；`checks.py` 诊断分类与预计算检查注入；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`support_report.py` 独立 SupportReport v2 组合和纯 `next_checks` 推导；`reporting.py` 输出；`cli.py` 参数与编排。
+- 目录职责：`models.py` scan 数据模型；`runner.py` 外部命令边界；`windows.py` Windows 事实采集和 Agent launcher lstat；`checks.py` 诊断分类与预计算检查注入；`snapshot.py` EnvironmentSnapshot v1、解析、写出与比较；`compare.py` 差异输出；`workspace_probe.py` 独立 WorkspaceProbeReport v1 与有边界的写入探针；`agent_doctor.py` 独立 AgentDoctorReport v1 与最小版本探针；`support_report.py` 独立 SupportReport v2 组合和纯 `next_checks` 推导；`project_doctor.py` 独立 ProjectDoctorReport v1、固定第一层 marker 推导和工具版本探测；`reporting.py` 输出；`cli.py` 参数与编排。
 - 代码风格：Python 类型标注、不可变数据模型优先；公共序列化字段使用稳定 snake_case。
 - 数据和配置位置：扫描只读取当前环境，不保存配置和凭据。
 - 不得修改的上游或生成文件：不触碰工作区其他项目；不创建项目级 `.codex`。
@@ -48,10 +48,12 @@
 - `agent-doctor` 的 `command_not_found` 退出 0；其他非 `usable` 状态退出 1；输入错误退出 2。WindowsApps alias/lstat 异常不得降级为 command_not_found。
 - `support-report` 复用同一个 Runner、env 和 timeout，先执行 `agent-doctor`，再将三类 Agent 结果作为预计算 `CheckResult` 注入 `scan_environment`；Agent Doctor 的多候选回退由其自身完成，scan 不再重复探测这三个 Agent。
 - `support-report` 是离线只读组合报告：不运行 workspace-probe/login/doctor/npx/web/网络，不写文件；只保留有限环境事实，采集异常脱敏截断并保留另一部分结果。完整退出 0，部分采集失败退出 1，输入错误退出 2。
+- `project-doctor` 只接受显式 `--target`，仅检查十个固定第一层 basename：Python、Node/npm/pnpm、yarn/bun lockfile 和 CMake marker；不 glob、递归或读取内容。未列入固定表的项目文件（例如 Makefile、Cargo.toml、go.mod）忽略，不否定其他可靠 marker。
+- `project-doctor` 的 target/platform/timeout 错误退出 2；marker 的 PermissionError/OSError、symlink、reparse point 或非普通项累计为脱敏 `unknown`，继续处理其他可靠 marker 和工具，最终退出 1。报告 checks 固定以 `project.markers` 开头，再按 python、node、npm、pnpm、cmake 顺序排列；工具 details 的 `required_by` 为固定有序 marker 名称。
 - `SupportReport v2` 顶层固定保留 v1 字段并增加 `next_checks`；内嵌 scan/Agent Doctor 仍为 v1。`derive_next_checks(scan, doctor)` 是纯函数，只读取既有模型，不解析 summary/evidence、不运行命令、不读取环境。
 - `next_checks` 只允许 Agent `access_denied`/`version_probe_failed`、PowerShell 裸 npm warning、PATH refresh warning/unknown 四类触发；不为 `command_not_found`、`resolved_but_not_executable`、`usable` 或注入的 Agent scan checks 生成建议，按固定优先级和 codex/claude/dsh 顺序去重。
 - CI 只运行在 Windows，测试 Python 3.12/3.14；Ruff 只在 3.12 运行；不启用 Actions 缓存。
-- CI 包验收只构建并安装 sdist/wheel，不自动发布 PyPI、创建 Release、签名、生成 SBOM 或构建其他平台制品；Python 3.14 等待首次 CI 验证。
+- CI 包验收只构建并安装 sdist/wheel，不自动发布 PyPI、创建 Release、签名、生成 SBOM 或构建其他平台制品；Python 3.12/3.14 已由 Windows CI 实际验证。
 - 不采集或打印密钥值；不计算哈希。
 - 未安装的可选 Agent 为 `warning`，不是 `fail`；此规则仅适用于 `scan` 的 `CheckResult`，`agent-doctor` 使用 `command_not_found` 并按约定退出 0。
 - `fail` 必须带证据；证据不足使用 `unknown`。
@@ -66,4 +68,4 @@
 ## 本机环境建议
 
 - 保留已验证的 Python 3.12，并建议并行安装 Python 3.14，使用 `py -3.12`/`py -3.14` 选择解释器。
-- GitHub CLI 的本地认证目前需要重新完成；Node.js、Docker 和 WSL 对当前项目不是必需依赖。
+- 远程操作前用 `gh auth status` 核对 GitHub CLI 身份；当前恢复点已验证认证可用。Node.js、Docker 和 WSL 对当前项目不是必需依赖。

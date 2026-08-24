@@ -6,6 +6,7 @@ import json
 
 from .agent_doctor import AgentDoctorReport
 from .models import ScanReport
+from .project_doctor import ProjectDoctorReport
 from .support_report import SupportReport
 from .workspace_probe import WorkspaceProbeReport
 
@@ -89,6 +90,42 @@ def render_agent_doctor_console(report: AgentDoctorReport) -> str:
         f"{key}={value}" for key, value in report.to_dict()["summary"].items()
     )
     lines.extend(("", f"Summary: {counts}"))
+    return "\n".join(lines)
+
+
+def render_project_doctor_json(report: ProjectDoctorReport, *, pretty: bool = False) -> str:
+    """Render the independent project-doctor v1 schema."""
+
+    return json.dumps(
+        report.to_dict(),
+        ensure_ascii=False,
+        indent=2 if pretty else None,
+        separators=None if pretty else (",", ":"),
+    )
+
+
+def render_project_doctor_console(report: ProjectDoctorReport) -> str:
+    """Render project markers and required tool checks without file contents."""
+
+    lines = ["Windows Agent Preflight project doctor", "=" * 40]
+    lines.append(f"Target: {report.target}")
+    lines.append("Markers: " + (", ".join(report.markers) if report.markers else "none"))
+    lines.append(f"Marker status: {report.marker_status.value}")
+    if report.unknown_reasons:
+        lines.append("Unknown reasons: " + "; ".join(report.unknown_reasons))
+    lines.append(
+        "Required tools: "
+        + (", ".join(report.required_tools) if report.required_tools else "none")
+    )
+    for check in report.checks:
+        lines.append(f"[{check.status.value.upper():7}] {check.id}: {check.summary}")
+        for evidence in check.evidence:
+            lines.append(f"  - {evidence}")
+    summary = report.to_dict()["summary"]
+    counts = ", ".join(
+        f"{key}={summary[key]}" for key in ("pass", "warning", "fail", "unknown")
+    )
+    lines.extend(("", f"Successful: {str(report.successful).lower()}", f"Summary: {counts}"))
     return "\n".join(lines)
 
 

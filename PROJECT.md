@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（cp1252 help 修复提交 `affa4a3` 已推送；Windows CI run `32693383743` 全部通过）
+状态：进行中（cp1252 help 修复提交 `affa4a3` 已推送；最新 main CI run `32693695834` 全部通过；`project-doctor` 本地实现待审阅）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -10,11 +10,11 @@
 
 一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
 
-当前阶段：真实 host/agent 差异采集准备——远程 CI 与包验收已通过，下一步只采集同机不同执行上下文的成对快照。
+当前阶段：`project-doctor` 本地实现与验证——远程 CI 与包验收已通过，但本里程碑尚未远程验证。
 
-下一步：由用户在宿主终端和 Agent 实际终端分别生成 host/agent 快照，再用 `compare` 验证真实环境差异；后续功能只根据这批证据扩展。
+下一步：完成 `project-doctor` 审阅并提交/推送，重跑 main CI；随后由用户在宿主终端和 Agent 实际终端分别生成 host/agent 快照。
 
-最近验证：本地严格 cp1252 子进程 help 测试、114 项测试、Ruff 和 diff check 已通过。Windows CI run [`32693383743`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过（详见 `docs/PROGRESS.md`）。
+最近验证：本地完整回归 145 项、Ruff、严格 cp1252 子进程 help、`project-doctor` 定向测试和真实仓库根命令均已通过；最新 main CI run [`32693695834`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693695834) 中，Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过。该 run 不包含当前本地 `project-doctor` 实现（详见 `docs/PROGRESS.md`）。
 
 ## 问题和价值
 
@@ -44,6 +44,7 @@
 - Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、`RUNNER_TEMP` workspace-probe 和 Python 3.12 的 sdist/wheel 干净环境安装验收。
 - 独立 `agent-doctor`：默认/重复 `--agent` 选择、PATH 中多类 launcher 解析、同一 Agent 多候选回退、每个候选最多一次 `--version` 探针和脱敏状态报告。
 - 独立 `support-report`：固定 v2 组合 envelope、有限环境事实、Agent Doctor 结果复用、scan 预计算注入、纯 `next_checks` 推导和脱敏采集错误。
+- 独立 `project-doctor`：只读取目标第一层十个固定 marker，推导 python/node/npm/pnpm/cmake，按固定顺序执行必需工具的 `--version`，不递归、不读 marker 内容、不使用目标目录 cwd。
 
 不包含：
 
@@ -57,6 +58,7 @@
 - `support-report` 不执行 workspace-probe、login、doctor、npx、web、网络或写文件，不提供自动行动建议；仅组合已有本地报告。
 - `next_checks` 只由既有 scan/Agent Doctor 模型触发，不解析自由文本、不运行命令、不读取环境；仅覆盖明确的 Agent launcher/version、PowerShell npm 和 PATH refresh 场景。
 - CLI 公开帮助使用 ASCII 文字并关闭 Rich Unicode 帮助边框；实际报告输出和中文文档不因此改变。
+- `project-doctor` 只接受显式 `--target`；冲突/孤立 lockfile、yarn/bun lockfile 或 marker 检查异常标记为 `unknown`，未列入固定表的项目文件直接忽略；当前实现已完成独立审阅，不声称已通过远程 CI。
 
 ## 成功标准
 
@@ -76,6 +78,7 @@
 - [x] `support-report` 复用共享 Runner/env/timeout；Agent Doctor 每个已发现候选最多执行一次，scan 不重复探测三个 Agent；Console/JSON 和部分失败退出语义有测试。
 - [x] `SupportReport v2` 保留 v1 顶层字段并增加不可变 `next_checks`；固定优先级/Agent 顺序、去重、触发边界和 Console/JSON 展示均有测试。
 - [x] 根命令和全部子命令 help 在严格 `PYTHONIOENCODING=cp1252:strict` 下可解码并退出 0，且不会执行采集或写文件。
+- [x] `project-doctor` 的固定 marker 推导、冲突/孤立、marker 异常累计、输入边界、工具调用/required_by、脱敏、JSON/Console 和退出码已有本地测试；远程 CI 待本里程碑推送后确认。
 
 ## 计划
 
@@ -90,6 +93,7 @@
 - [x] 9. 增加离线 `support-report` 组合报告；不增加 workspace-probe、网络或自动修复流程。
 - [x] 10. 将 `support-report` 升级为 v2，增加纯 `next_checks` 推导；不维护双版本或执行自动建议。
 - [x] 11. 将 Typer 公开 help/docstring 调整为 ASCII，关闭 Unicode 帮助格式，并加入 cp1252 子进程 smoke test；不改变报告输出（本地完成，推送后重跑 CI）。
+- [x] 12. 增加独立 `project-doctor` v1：第一层 marker 推导与必需工具 `--version` 探测；当前仅完成本地实现和验证，待审阅后推送。
 
 ## 技术和环境
 
@@ -98,7 +102,7 @@
 - 主要依赖：运行时 `typer>=0.16,<1`；开发依赖 `build>=1,<2`、`pytest>=8,<9`、`ruff>=0.12,<1`。
 - 安装/准备命令：`python -m pip install -e ".[dev]"`
 - 本地包验收：`py -3.12 -m build --sdist --wheel`，再按 `docs/release-check.md` 分别安装两个制品。
-- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`、`agent-preflight agent-doctor --json --pretty`、`agent-preflight support-report --json --pretty`
+- 运行命令：`python -m win_agent_preflight scan`、`agent-preflight snapshot --label host --output .\\snapshots\\host.json`、`agent-preflight compare baseline.json current.json`、`agent-preflight workspace-probe --target . --allow-write --json --pretty`、`agent-preflight agent-doctor --json --pretty`、`agent-preflight support-report --json --pretty`、`agent-preflight project-doctor --target . --json --pretty`
 - 针对性验证命令：`python -B -m pytest -q -p no:cacheprovider`
 - 完整验证命令：先运行 `python -B -m pytest -q -p no:cacheprovider`，通过后再运行 `python -m ruff check . --no-cache`。
 
@@ -122,24 +126,25 @@
 - 只读 HKLM/HKCU PATH 事实、大小写不敏感变量展开和刷新状态分类；
 - 首批模型、脱敏、缺失、候选、超时和注册表事实测试；
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
-- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；修复提交 `affa4a3` 对应的 run `32693383743` 已全部通过。
+- Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收；修复提交 `affa4a3` 对应的最新 main run `32693695834` 已全部通过。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
 - 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现、测试和独立复审已完成并提交为 `9f5b951`。
 - CLI help cp1252 修复：Typer 公开 help/docstring 使用 ASCII，关闭 Rich Unicode 边框；根命令和全部子命令由严格 cp1252 子进程测试覆盖。
+- 独立 `ProjectDoctorReport v1`、固定第一层 marker 推导、首项 marker CheckResult、必需工具 `--version` 探测、目标边界拒绝和独立 JSON/Console 输出已在本地实现。
 
 当前阻塞：
 
-- 无远程仓库、认证、Windows CI 或包验收阻塞。
+- `project-doctor` 当前实现尚未提交/推送，尚未由远程 CI 审阅；最新 main CI `32693695834` 只覆盖此前已推送内容。
 - 尚未获得同一台机器在宿主终端与 Agent 实际终端生成的成对快照，因此不能用当前证据断言两者的 PATH、权限或 launcher 差异。
 
 下一步：
 
+- 完成 `project-doctor` 本地审阅，提交/推送后重跑 main CI，确认新命令没有改变既有 scan/support/snapshot schema 或行为。
 - 用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
-- 根据真实差异决定下一里程碑，不预先增加自动修复、后台服务或额外平台基础设施。
 
 未提交修改：
 
-- 无；本次状态文档提交后工作区应保持干净。
+- `project_doctor.py`、`reporting.py`、`cli.py`、项目测试、CLI help 测试和本次状态文档；未提交/推送。
 
 ## 关键决策
 
@@ -163,6 +168,7 @@
 | Agent Doctor 保留 lstat/Runner 结构化错误 | WindowsApps alias 和权限异常不能被静默降级为 command_not_found；失败证据不回显 stdout/stderr | 2026-08-24 |
 | SupportReport v2 只组合本地结果并纯推导 next_checks | 避免分享报告触发写入、联网、登录、重复 Agent 探针或隐式自动修复 | 2026-08-24 |
 | CLI help 使用 ASCII 并关闭 Rich Unicode 格式 | 兼容严格 cp1252 的 Windows 旧代码页控制台；不改变实际报告和中文文档 | 2026-08-24 |
+| project-doctor 使用固定第一层 marker 和独立 v1 报告 | 在不读项目内容、不递归、不改变既有 scan/support/snapshot schema 的前提下推导本地工具链 | 2026-08-24 |
 
 ## 验证证据
 
@@ -189,15 +195,19 @@
 | 2026-08-24 | 第七里程碑制品复验 | 当前进程设 `PYTHONUTF8=1` 后默认隔离构建，并在 `.artifacts\\m7-sdist`、`.artifacts\\m7-wheel` 安装两个制品 | sdist/wheel 均包含 `support_report.py`；两个全新 Python 3.12 环境的 `support-report --help` 均退出 0；首次沙箱构建的真实阻塞为 PyPI 网络权限，不是源码或构建后端错误 |
 | 2026-08-24 | 第八里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 113 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
 | 2026-08-24 | SupportReport v2 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；顶层 `schema_version=2`、`kind=support_report`；内嵌 scan/Agent Doctor 为 v1；`offline=true`、`workspace_probe_run=false`；本次推导 1 项 next check |
-| 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部 6 个子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
+| 2026-08-24 | CLI help cp1252 smoke | `python -B -m pytest tests/test_cli_help.py -q -p no:cacheprovider` | 根命令和全部子命令在严格 cp1252 子进程中均退出 0；stdout/stderr 严格解码；临时工作目录无文件 |
 | 2026-08-24 | cp1252 修复全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 114 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
 | 2026-08-24 | 首次 GitHub Windows CI | [run 32691934171](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) | Python 3.12/3.14 安装与 pytest 通过，3.12 Ruff 通过；两个矩阵 job 均在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败；package job 因 `needs: test` 跳过，远程 sdist/wheel 未验证 |
 | 2026-08-24 | cp1252 修复后 GitHub Windows CI | [run 32693383743](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693383743) | Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-24 | 最新 main GitHub Windows CI | [run 32693695834](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32693695834) | 已推送内容的 Python 3.12/3.14 测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过；不包含当前本地 project-doctor |
+| 2026-08-24 | project-doctor 定向测试 | `python -B -m pytest tests/test_project_doctor.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 41 passed；覆盖 marker 组合/锁文件去重/冲突/孤立、ignored marker、marker 异常累计、第一层边界、reparse/symlink/非普通项、无内容读取、工具调用/required_by 和 CLI 退出语义 |
+| 2026-08-24 | project-doctor 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 145 passed；Ruff 通过；diff check 无内容错误（仅 CRLF 转换提示） |
+| 2026-08-24 | project-doctor 真实仓库根 | `python -B -m win_agent_preflight project-doctor --target . --json --pretty --timeout 1` | 退出 0；`project.markers` 与 `project.python` 均 pass；仅推导并探测 python；未写入文件；当前本地实现尚未远程验证 |
 
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定功能提交：cp1252 help 修复 `affa4a3`，已推送并通过 Windows CI run `32693383743`。
+- 最近稳定功能提交：cp1252 help 修复 `affa4a3`，已推送并通过最新 Windows CI run `32693695834`；project-doctor 仍为未提交工作区修改。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
@@ -206,7 +216,8 @@
 ## 已知限制和后续
 
 - 当前未执行真实 Agent 沙箱探针，不能据此判断 Codex/Claude/DSH 内部权限。
-- Windows CI 已确认 Python 3.12/3.14 矩阵和远程 sdist/wheel 安装验收通过；本机仍只安装并直接验证了 Python 3.12.7。
+- Windows CI `32693695834` 已确认已推送内容的 Python 3.12/3.14 矩阵和远程 sdist/wheel 安装验收通过；当前 project-doctor 尚未纳入该 run，本机仍只安装并直接验证了 Python 3.12.7。
+- `project-doctor` 只检查固定第一层十个 basename，marker 语义不等同于构建系统完整识别；冲突、孤立 lockfile、yarn/bun lockfile 和 marker lstat 异常会保守返回 `unknown`，未列入固定表的文件会忽略。它不读取 marker 内容、不递归、不以 target 作为工具 cwd。
 - `agent-doctor` 只描述当前进程这一次 PATH/launcher 探测上下文；同一 Agent 可能依次尝试多个候选；`usable` 不等于账号登录、网络或 Agent 沙箱权限可用。
 - WindowsApps alias 或 lstat 受限会保守报告为 `access_denied`/结构化不可用状态，不把它当作命令缺失；其他进程或权限变化可能使后续启动结果不同。
 - `agent-doctor` 不保存或回显 stdout/stderr 原文；成功结果仅保存经脱敏且最多 200 字符的第一条非空版本行，失败结果不保存版本文本。
