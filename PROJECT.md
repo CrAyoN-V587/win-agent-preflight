@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第六里程碑 `agent-doctor` 已实现并通过本地验证，待提交；第五里程碑待远程推送和首次 CI）
+状态：进行中（第六里程碑 `agent-doctor` 已提交，待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -12,7 +12,7 @@
 
 当前阶段：第六里程碑——增加独立 `agent-doctor`，检查已解析的本地 Agent 启动器版本探针。
 
-下一步：提交第六里程碑；随后恢复认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：第六里程碑全量 96 项测试与 Ruff 通过；第五里程碑的 `build 1.5.0` 已生成并验收 sdist/wheel。真实 `agent-doctor --json --pretty` 已执行并报告当前 Codex WindowsApps launcher 为 `access_denied`、其余默认 Agent 为 `command_not_found`；第五里程碑尚未在 GitHub runner 执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
@@ -119,17 +119,17 @@
 - 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
 - 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
-- 第六里程碑尚未提交；当前改动仅涉及委派的 Agent Doctor 源码、测试和同步文档。
+- 第六里程碑已完成设计、实现、两轮边界修正和独立复审，并提交为 `f7e3503`；尚待推送。
 
 下一步：
 
 - 创建/更新 GitHub 公开仓库并推送，观察 Python 3.12/3.14 CI 与包 job；
 - 之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
-- 由主 Agent 审阅当前差异后形成第六里程碑独立提交；随后恢复 GitHub 认证并推送。
+- 恢复 GitHub 认证并推送全部本地里程碑，观察 Windows Python 3.12/3.14 CI。
 
 未提交修改：
 
-- 第六里程碑的 `agent_doctor.py`、Runner/Windows/reporting/CLI 增量、对应测试和同步文档；尚未提交。
+- 无；本次状态文档提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -176,7 +176,7 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第五里程碑 `c936e3d`；第六里程碑尚未提交，提交后以新的 `main` HEAD 为恢复点。
+- 最近稳定提交：第六里程碑 `f7e3503`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
