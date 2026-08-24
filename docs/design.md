@@ -10,6 +10,7 @@
 cli.py
   ├─ checks.py（诊断分类与扫描编排）
   ├─ agent_doctor.py（AgentDoctorReport v1 与最小版本探针）
+  ├─ support_report.py（SupportReport v1 与离线组合采集）
   ├─ snapshot.py（EnvironmentSnapshot v1、解析、写入和比较）
   └─ compare.py（差异输出）
        ├─ windows.py（PATH 候选、注册表 PATH 和 PowerShell 事实）
@@ -23,6 +24,7 @@ cli.py
 - `windows.py` 负责当前进程环境中的 Windows 事实采集；注册表只读 HKLM/HKCU 环境键，路径只作为脱敏后的证据流出；Agent 解析只读 lstat，不在发现阶段启动命令。
 - `checks.py` 将事实转换为 `pass`、`warning`、`fail`、`unknown`，不负责 CLI 参数或输出格式。
 - `agent_doctor.py` 使用独立状态和 v1 报告，不复用 `CheckResult`，也不改变 `scan`、`snapshot` 或 `workspace-probe` schema。
+- `support_report.py` 先收集 Agent Doctor，再将其结果映射为既有 `CheckResult` 并注入 `scan_environment`；Agent Doctor 可依次尝试同一 Agent 的多个候选，每个候选最多一次，scan 不再重复探测三个 Agent，不改变 standalone `scan` 的 schema 或行为。
 - `cli.py` 负责解析子命令；既有命令的调用路径和 v1 JSON/退出语义保持不变。
 - `reporting.py` 只渲染已有结果，不再次运行命令。
 
@@ -76,11 +78,19 @@ cli.py
 
 ## 第六里程碑：agent-doctor
 
-`agent-doctor` 是独立的 `AgentDoctorReport v1`，只回答“当前进程 PATH 中已解析的本地 Agent 启动器能否完成一次版本探针”。默认检查 `codex`、`claude`、`dsh`；重复的 `--agent` 先去重，再按这个固定顺序输出。其他输入直接作为输入错误，不静默扩展支持范围。
+`agent-doctor` 是独立的 `AgentDoctorReport v1`，只回答“当前进程 PATH 中已解析的本地 Agent 启动器能否完成版本探测流程”。默认检查 `codex`、`claude`、`dsh`；重复的 `--agent` 先去重，再按这个固定顺序输出。其他输入直接作为输入错误，不静默扩展支持范围。
 
-发现阶段只读取当前 PATH 中的 `.exe`、`.cmd`、`.bat` 和 `.ps1` 启动器，并使用 `lstat` 保留 WindowsApps alias 或权限异常的结构化证据。只有发现普通文件后才通过 `Runner` 执行一次 `--version`；`.ps1` 通过已有 PowerShell launcher 处理。不会调用 `login`、`doctor`、`npx`、网络或网页命令。
+发现阶段只读取当前 PATH 中的 `.exe`、`.cmd`、`.bat` 和 `.ps1` 启动器，并使用 `lstat` 保留 WindowsApps alias 或权限异常的结构化证据。同一 Agent 的多个普通候选按 PATH 顺序依次通过 Runner 执行 `--version`，每个候选最多一次；`.ps1` 通过已有 PowerShell launcher 处理。不会调用 `login`、`doctor`、`npx`、网络或网页命令。
 
 每个 Agent 的状态固定为 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed` 或 `usable`。只有 `--version` 退出码为 0 且 stdout/stderr 至少有一条非空文本时才是 `usable`；成功结果保存脱敏后最多 200 字符的第一条非空版本行，空输出归类为 `version_probe_failed`。未发现命令不是失败，全部未安装时 CLI 退出 0；已发现但不可用时退出 1；输入错误退出 2。顶层报告固定含 `kind=agent_doctor` 与 `offline=true`。Runner 错误只输出 `error_type`、`winerror`、返回码和超时标记，不回显 stdout/stderr；路径按 `%USERPROFILE%` 脱敏。
+
+## 第七里程碑：support-report
+
+`support-report` 是独立的 `SupportReport v1` 分享 envelope。它只接受 `--json`、`--pretty` 和 `--timeout`，默认输出 Console，不提供 `--output`。一次调用只创建一个共享 `Runner`、环境映射和超时：先运行默认 `codex`、`claude`、`dsh` 的 Agent Doctor（允许同一 Agent 的多候选回退，每个已发现候选最多一次），再把三个最终结果映射为既有 `CheckResult`，通过 `scan_environment(precomputed_commands=...)` 注入，避免 scan 再次执行这三个 Agent 的版本命令；不改变 standalone `scan` 的默认行为和 schema。
+
+顶层字段固定为 `schema_version`、`tool`、`kind=support_report`、`generated_at`、有限 `environment`、`collection`、`scan`、`agent_doctor` 和 `errors`。environment 只保留 `platform`、`python_version`、`architecture`；collection 固定记录 `offline=true`、`workspace_probe_run=false`、`timeout_seconds` 和 `complete`。报告不保存主机名、cwd、`sys.executable`、完整 PATH 或环境变量值，也不运行 workspace-probe、login、doctor、npx、web、网络或写文件。
+
+健康异常仍属于采集成功：Agent 命令缺失或不可用由既有 warning/独立 Agent 状态表达，CLI 退出 0。只有部分采集抛出异常时记录脱敏、截断且不含 traceback/stdout/stderr 的 `errors`，保留另一部分结果并退出 1；输入错误退出 2。首版只组合证据，不给出行动建议。Console 复用 scan 和 Agent Doctor renderer，并固定输出分享前边界提醒。
 
 ## 第四里程碑：workspace-probe
 

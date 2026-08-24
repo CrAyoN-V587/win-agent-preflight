@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：第六里程碑 `agent-doctor` 已实现、复审并提交为 `f7e3503`，待推送与首次 GitHub runner 执行。
-- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe` 和 CI/构建入口已实现；Agent Doctor 核心与专项测试已写入。
-- 最近验证：第六里程碑全量 96 项测试和 Ruff 通过；`build 1.5.0` 成功生成 1 个 sdist 与 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI；真实 Agent Doctor CLI 报告 Codex `access_denied`、Claude/DSH `command_not_found`。不能据此声称 GitHub CI 或 Python 3.14 已运行。
-- 未完成项：Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
-- 下一步：恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
+- 当前阶段：第七里程碑 `support-report` 已实现并完成本地验证，待提交；前六里程碑已提交，待推送与首次 GitHub runner 执行。
+- 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
+- 最近验证：第七里程碑全量 104 项测试和 Ruff 通过；`build 1.5.0` 成功生成 1 个 sdist 与 1 个 wheel，两个制品分别在干净 Python 3.12 虚拟环境安装并启动 CLI；真实 Support Report JSON 退出 0，未运行 workspace-probe。不能据此声称 GitHub CI 或 Python 3.14 已运行。
+- 未完成项：第七里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
+- 下一步：由主 Agent 审阅并提交第七里程碑；恢复 GitHub CLI 认证并推送；观察 CI 后再生成 host/agent 快照。
 
 本机建议安装环境（基于当前验证）：
 
@@ -87,10 +87,10 @@
 
 ## 阶段 6：Agent Doctor 最小版本探针
 
-状态：实现、全量测试和真实 CLI 完成，待提交
+状态：实现、全量测试和真实 CLI 完成，已提交 `f7e3503`，待推送
 
 - [x] 新增独立 `AgentDoctorReport v1`，固定 `codex`、`claude`、`dsh` 顺序；重复 `--agent` 去重，未知输入退出 2。
-- [x] 只对 PATH 中已通过 lstat 解析的 `.exe`、`.cmd`、`.bat`、`.ps1` 普通 launcher，经 Runner 执行一次 `--version`。
+- [x] 对 PATH 中已通过 lstat 解析的 `.exe`、`.cmd`、`.bat`、`.ps1` 普通 launcher 按顺序探测；同一 Agent 可多候选回退，每个候选经 Runner 最多执行一次 `--version`。
 - [x] 覆盖 `command_not_found`、`resolved_but_not_executable`、`access_denied`、`version_probe_failed`、`usable` 五种状态；全部未安装退出 0，已解析但不可用退出 1。
 - [x] Runner OSError 增加 `error_type`/`winerror`；WindowsApps alias/lstat 异常保留结构化证据，不降级为缺失。
 - [x] 失败报告不回显 stdout/stderr，路径按 `%USERPROFILE%` 脱敏；不调用 login、doctor、npx、网页或网络流程。
@@ -98,12 +98,23 @@
 - [x] 报告固定包含 `kind=agent_doctor`、`offline=true`；WinError 1920 纳入 `access_denied` 优先级，并覆盖多个候选的失败分类。
 - [x] 全量 pytest（96 项）、Ruff 和真实 `agent-doctor --json` CLI 已完成；该命令只代表一次当前进程 PATH/权限上下文。
 
+## 阶段 7：Support Report 离线组合报告
+
+状态：实现、全量测试和真实 JSON 完成，待提交
+
+- [x] 新增独立 `SupportReport v1`，固定 `kind=support_report`、`generated_at`、有限 environment、collection、scan、agent_doctor 和 errors 字段。
+- [x] `support-report` 共享同一个 Runner/env/timeout，先执行 Agent Doctor，再将 `codex`、`claude`、`dsh` 最终结果作为预计算 `CheckResult` 注入 scan；多候选回退由 Agent Doctor 完成，每个已发现候选最多一次，scan 不再重复探测三个 Agent。
+- [x] 默认 Console、`--json`/`--pretty` 输出；不提供 `--output`；Console 复用 scan/Agent Doctor renderer 并给出分享前边界提醒。
+- [x] 离线只读边界：不运行 workspace-probe、login、doctor、npx、web、网络或写文件；不提供行动建议。
+- [x] 健康异常保持退出 0；部分采集异常保留另一部分结果、记录脱敏截断错误并退出 1；输入错误退出 2。
+- [x] 全量 pytest（104 项）、Ruff、diff check 和真实 `support-report --json --pretty --timeout 1` 完成。
+
 ## 暂停检查点
 
-- 当前阶段：第六里程碑 `agent-doctor` 实现、全量验证和独立复审完成，已提交 `f7e3503`；GitHub runner 尚未执行。
-- 最近验证：96 项测试与 Ruff 通过；build 1.5.0 构建 sdist/wheel 各 1 个；两个干净 Python 3.12 环境安装并启动 CLI 成功；真实 Agent Doctor CLI 已输出结构化 access_denied/command_not_found 结果。
-- 未完成项：GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步：恢复 GitHub 认证后创建/更新远程并推送。
+- 当前阶段：第七里程碑 `support-report` 实现和全量验证完成，待主 Agent 审阅/提交；前六里程碑已提交，GitHub runner 尚未执行。
+- 最近验证：104 项测试与 Ruff 通过；build 1.5.0 构建 sdist/wheel 各 1 个；两个干净 Python 3.12 环境安装并启动 CLI 成功；真实 Support Report JSON 已输出 `offline=true`、`workspace_probe_run=false`。多候选回退及 scan 不重复由自动化测试验证，真实命令记录不声称列出候选调用次数。
+- 未完成项：第七里程碑提交、GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步：主 Agent 审阅并提交第七里程碑，恢复 GitHub 认证后创建/更新远程并推送。
 - 恢复命令：
 
 ```powershell
@@ -113,6 +124,7 @@ python -B -m pytest -q -p no:cacheprovider
 python -m ruff check . --no-cache
 agent-preflight scan --json
 agent-preflight agent-doctor --json --pretty
+agent-preflight support-report --json --pretty
 agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 ```
 
@@ -139,6 +151,8 @@ agent-preflight snapshot --label host --output .\snapshots\host.json --pretty
 | 2026-08-24 | `python -m pip install -e ".[dev]" --no-build-isolation` | 安装成功，`agent-preflight.exe` 位于当前 Python Scripts 目录 |
 | 2026-08-24 | `python -B -c "from win_agent_preflight.windows import collect_registry_path_facts; ..."` | HKLM/HKCU 读取完整；异常/类型/缺失场景由测试覆盖 |
 | 2026-08-24 | `python -B -m win_agent_preflight scan --json --pretty --timeout 2` | 退出 0；10 pass、3 warning、0 fail、0 unknown；JSON 可解析 |
+| 2026-08-24 | 第七里程碑全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 104 passed；Ruff 通过；diff check 仅报告 CRLF 转换提示，无内容错误 |
+| 2026-08-24 | Support Report 真实 CLI | `python -B -m win_agent_preflight support-report --json --pretty --timeout 1` | 退出 0；JSON 可解析；`offline=true`、`workspace_probe_run=false`；未运行 workspace-probe |
 
 ## 下一里程碑验收
 

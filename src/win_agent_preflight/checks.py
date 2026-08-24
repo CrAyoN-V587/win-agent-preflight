@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 
+from .agent_doctor import AgentDoctorResult, AgentDoctorState
 from .models import CheckResult, CheckStatus, CommandCandidate, ScanReport
 from .runner import Runner
 from .windows import (
@@ -39,6 +40,7 @@ def scan_environment(
     user_profile: str | None = None,
     user_path: str | None = None,
     registry_reader: RegistryValueReader | Mapping[str, object] | None = None,
+    precomputed_commands: Mapping[str, CheckResult] | None = None,
     timeout: float = 5.0,
 ) -> ScanReport:
     environment = env if env is not None else os.environ
@@ -46,6 +48,9 @@ def scan_environment(
     results: list[CheckResult] = []
     candidate_map: dict[str, tuple[CommandCandidate, ...]] = {}
     for name, required in COMMANDS:
+        if precomputed_commands is not None and name in precomputed_commands:
+            results.append(precomputed_commands[name])
+            continue
         candidate_map[name] = discover_command(name, env=environment, user_profile=user_profile)
         results.append(
             check_command(
@@ -86,6 +91,40 @@ def scan_environment(
         )
     )
     return ScanReport(schema_version=1, tool="win-agent-preflight", checks=tuple(results))
+
+
+def agent_doctor_to_check(result: AgentDoctorResult) -> CheckResult:
+    """Map one independent Agent Doctor result into the existing scan model."""
+
+    check_id = f"command.{result.agent.replace('.', '_')}"
+    details = {"agent_doctor_state": result.state.value, **result.details}
+    if result.state is AgentDoctorState.USABLE:
+        evidence = list(result.evidence)
+        if result.path:
+            evidence.insert(0, f"selected: {result.path}")
+        if result.version:
+            evidence.append(f"version: {result.version}")
+        return CheckResult(
+            id=check_id,
+            status=CheckStatus.PASS,
+            summary=f"命令可启动：{result.agent}",
+            evidence=tuple(evidence) or ("version probe succeeded",),
+            details=details,
+        )
+
+    if result.state is AgentDoctorState.COMMAND_NOT_FOUND:
+        summary = f"未发现命令：{result.agent}"
+        evidence = result.evidence or ("agent command was not found in PATH",)
+    else:
+        summary = f"可选 Agent 命令存在但无法启动：{result.agent}"
+        evidence = result.evidence or ("agent-doctor reported an unavailable launcher",)
+    return CheckResult(
+        id=check_id,
+        status=CheckStatus.WARNING,
+        summary=summary,
+        evidence=tuple(evidence),
+        details=details,
+    )
 
 
 def check_command(

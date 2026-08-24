@@ -18,6 +18,8 @@ from .reporting import (
     render_agent_doctor_json,
     render_console,
     render_json,
+    render_support_report_console,
+    render_support_report_json,
     render_workspace_probe_console,
     render_workspace_probe_json,
 )
@@ -28,6 +30,7 @@ from .snapshot import (
     load_snapshot,
     write_snapshot,
 )
+from .support_report import SupportReportInputError, run_support_report
 from .windows import redact_text
 from .workspace_probe import (
     WorkspaceProbeInputError,
@@ -129,6 +132,28 @@ def agent_doctor(
         else render_agent_doctor_console(report)
     )
     if report.has_unusable_agent:
+        raise typer.Exit(code=1)
+
+
+@app.command("support-report")
+def support_report(
+    json_output: bool = typer.Option(False, "--json", help="输出可分享的 v1 JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="JSON 使用缩进格式"),
+    timeout: float = typer.Option(5.0, min=0.1, help="每个外部命令的超时秒数"),
+) -> None:
+    """收集离线支持报告；不运行写入探针或网络流程。"""
+
+    try:
+        report = run_support_report(timeout=timeout)
+    except SupportReportInputError as exc:
+        typer.echo(f"support-report error: {redact_text(str(exc))}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(
+        render_support_report_json(report, pretty=pretty)
+        if json_output
+        else render_support_report_console(report)
+    )
+    if report.errors:
         raise typer.Exit(code=1)
 
 
