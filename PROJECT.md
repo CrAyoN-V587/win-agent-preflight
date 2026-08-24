@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第四里程碑已通过审阅，待提交和远程推送）
+状态：进行中（第四里程碑已提交，待创建远程并推送）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -12,7 +12,7 @@
 
 当前阶段：第四里程碑——增加一次性、显式授权的 Windows 工作区写入能力探针。
 
-下一步唯一动作：提交第四里程碑；随后创建 GitHub 远程并推送，用户再分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步唯一动作：创建 GitHub 远程并推送；随后由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：完整 75 项测试通过（其中 workspace-probe 27 项）；Ruff 通过；项目根在当前 Codex 沙箱中按预期报告写入拒绝并退出 1，真实 `%TEMP%` probe 六项 pass 且 `residual_paths=[]`（详见 `docs/PROGRESS.md`）。
 
@@ -105,15 +105,15 @@
 当前阻塞：
 
 - 本机 `gh` 已安装，但保存的 GitHub token 已失效；网页创建页已准备好，远程创建/推送仍需恢复 GitHub 命令行认证。
-- 第四里程碑已通过独立审阅，尚未提交和推送；本阶段不自动修改系统配置。
+- 第四里程碑已通过独立审阅并提交为 `623ef26`，尚未推送；本阶段不自动修改系统配置。
 
 下一步：
 
-- 提交第四里程碑后创建/更新 GitHub 公开仓库；之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
+- 创建/更新 GitHub 公开仓库并推送；之后用户在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 验证真实差异解释。
 
 未提交修改：
 
-- 第四里程碑修改：`workspace_probe.py`、`reporting.py`、`cli.py`、`tests/test_workspace_probe.py` 及本阶段文档；提交后应保持工作区干净。
+- 无；本次状态文档提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -147,7 +147,7 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：提交前为第三里程碑 `3d417d0`；本次提交完成后以新的 `main` HEAD 为第四里程碑恢复点。
+- 最近稳定提交：第四里程碑 `623ef26`；状态文档提交完成后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。

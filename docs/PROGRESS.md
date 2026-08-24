@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：第四里程碑已通过独立审阅，等待提交和推送。
+- 当前阶段：第四里程碑已通过独立审阅并提交为 `623ef26`，等待推送。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断和独立 `workspace-probe` 已实现。
 - 最近验证：完整 75 项测试通过（48 个既有测试与 27 个 workspace-probe 测试），Ruff 通过；项目根在当前 Codex 沙箱中按预期因 WinError 5 退出 1 且无残留，真实 `%TEMP%` probe 六项 pass、`successful=true`、`residual_paths=[]`。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照、远程提交/推送、Agent 原生 Doctor 适配器、Windows CI。
-- 下一步唯一动作：提交第四里程碑，随后创建/更新 GitHub 远程并推送；用户再在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 检查真实差异。
+- 下一步唯一动作：创建/更新 GitHub 远程并推送；用户再在宿主终端和 Agent 实际终端分别运行 `snapshot --label host/agent`，再用 `compare` 检查真实差异。
 
 本机建议安装环境（基于首版验证）：
 
@@ -59,7 +59,7 @@
 
 ## 阶段 4：一次性 workspace-probe
 
-状态：完成并通过独立审阅，待提交
+状态：完成并通过独立审阅，已提交 `623ef26`，待推送
 
 - [x] 新增独立 WorkspaceProbeReport v1，固定六项 workspace.* 检查顺序，并校验 successful 与状态/残留一致。
 - [x] CLI 要求 --target PATH --allow-write；输入拒绝 2，能力失败/残留 1，成功 0，Ctrl-C 130。
@@ -75,10 +75,10 @@
 
 ## 暂停检查点
 
-- 当前阶段：第四里程碑已通过专项测试、独立审阅和真实 CLI 验收，待提交。
+- 当前阶段：第四里程碑已通过专项测试、独立审阅和真实 CLI 验收，已提交 `623ef26`，待推送。
 - 最近验证：48 个既有测试 + 27 个 workspace-probe 测试，共 75 项通过；Ruff 通过；项目根在当前 Codex 沙箱中退出 1 且零残留，真实 %TEMP% 六项 pass、零残留。
-- 未完成项：第四里程碑提交/推送，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步唯一动作：提交第四里程碑，然后创建/更新 GitHub 远程并推送。
+- 未完成项：GitHub 远程创建/推送，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步唯一动作：创建/更新 GitHub 远程并推送。
 - 恢复命令：
 
 ```powershell
