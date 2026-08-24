@@ -6,7 +6,7 @@ Windows-first preflight and differential diagnostics for AI coding agents.
 
 ## 当前状态
 
-当前版本已完成第八个可运行里程碑的本地实现与验证（待提交和首次 CI），提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
+当前版本已完成并提交第八个可运行里程碑，等待首次 GitHub CI；现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`agent-doctor` 和 `support-report` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；

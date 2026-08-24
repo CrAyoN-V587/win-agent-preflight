@@ -2,11 +2,11 @@
 
 ## 当前快照
 
-- 当前阶段：第八里程碑 `SupportReport v2` 已实现，待提交；前七个里程碑已提交，待推送与首次 GitHub runner 执行。
+- 当前阶段：第八里程碑 `SupportReport v2` 已实现、复审并提交为 `9f5b951`，待推送与首次 GitHub runner 执行。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Support Report 和 CI/构建入口已实现。
 - 最近验证：第八里程碑新增 `next_checks` 纯推导、v2 schema、触发边界和 Console/JSON 测试；全量 113 项测试与 Ruff 通过。真实 v2 Support Report JSON 退出 0，顶层 schema 为 2，内嵌 scan/Agent Doctor 为 v1；不能据此声称 GitHub CI 或 Python 3.14 已运行。
-- 未完成项：第八里程碑提交、Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
-- 下一步：完成第八里程碑审阅并提交；恢复 GitHub CLI 认证并推送。
+- 未完成项：Python 3.14 首次 CI、远程推送、用户在真实宿主终端和各 Agent 实际终端分别生成快照。
+- 下一步：恢复 GitHub CLI 认证并推送。
 
 本机建议安装环境（基于当前验证）：
 
@@ -111,7 +111,7 @@
 
 ## 阶段 8：SupportReport v2 next_checks
 
-状态：实现、全量测试完成，待提交
+状态：实现、全量测试、独立复审和提交完成，待推送
 
 - [x] 外层 SupportReport schema 升为 v2，固定保留 v1 采集字段；内嵌 scan/Agent Doctor 仍为 v1，不维护双版本 flag。
 - [x] 新增不可变 `NextCheck` 与纯 `derive_next_checks(scan, doctor)`；不运行命令、不读取环境、不解析自由文本。
@@ -122,10 +122,10 @@
 
 ## 暂停检查点
 
-- 当前阶段：第八里程碑 `SupportReport v2` 实现和全量验证完成，待主 Agent 审阅/提交；GitHub runner 尚未执行。
+- 当前阶段：第八里程碑 `SupportReport v2` 实现、全量验证和独立复审完成，已提交 `9f5b951`；GitHub runner 尚未执行。
 - 最近验证：113 项测试与 Ruff 通过；前七里程碑 build 1.5.0 构建 sdist/wheel 各 1 个并完成两个干净 Python 3.12 环境安装；真实 v2 Support Report JSON 退出 0，内嵌 scan/Agent Doctor 为 v1。本次多候选回退、scan 不重复和 next_checks 纯推导由自动化测试验证。
-- 未完成项：第八里程碑提交、GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
-- 下一步：主 Agent 审阅并提交第八里程碑，再恢复 GitHub 认证后创建/更新远程并推送。
+- 未完成项：GitHub 远程创建/推送、Python 3.14 首次 CI，以及用户在宿主与 Agent 两端手动生成快照。
+- 下一步：恢复 GitHub 认证后创建/更新远程并推送。
 - 恢复命令：
 
 ```powershell

@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：进行中（第八里程碑 `SupportReport v2` 已实现，待提交；前七个里程碑待远程推送和首次 CI）
+状态：进行中（第八里程碑 `SupportReport v2` 已提交，待远程推送和首次 CI）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-24  
@@ -12,7 +12,7 @@
 
 当前阶段：第八里程碑——在 SupportReport v2 中增加纯 `next_checks` 推导，不改变既有采集边界。
 
-下一步：完成第八里程碑审阅并提交；恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
+下一步：恢复 GitHub CLI 认证并推送，等待 Python 3.12/3.14 CI 首次通过，再由用户分别在宿主终端与 Agent 实际终端生成 host/agent 快照。
 
 最近验证：第八里程碑 113 项测试、Ruff、真实 v2 `support-report --json --pretty --timeout 1` 和 diff check 已通过；JSON 顶层 schema 为 2，内嵌 scan/Agent Doctor 仍为 v1。GitHub runner 尚未执行，Python 3.14 仍待首次 CI（详见 `docs/PROGRESS.md`）。
 
@@ -120,7 +120,7 @@
 - 独立 `WorkspaceProbeReport v1`、六步文件能力探针、相对残留报告和 CLI 130 中断交接。
 - Windows-only CI、Python 3.12/3.14 测试矩阵、3.12 Ruff、runner-temp probe 和 sdist/wheel 包验收配置。
 - 独立 `AgentDoctorReport v1`、固定 Agent 选择、四类 launcher 解析、`--version` 最小探针、结构化 Runner 错误和失败输出脱敏实现，并已通过全量验证。
-- 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现与测试已完成，尚未提交。
+- 独立 `SupportReport v2`、不可变 `NextCheck` 和纯 `derive_next_checks` 推导；实现、测试和独立复审已完成并提交为 `9f5b951`。
 
 当前阻塞：
 
@@ -128,7 +128,7 @@
 - Python 3.14 尚未在本机或 GitHub runner 首次验证；需要推送第五里程碑后观察 CI。
 - 第五里程碑已完成本地测试、双制品安装验收和独立审阅，并提交为 `c936e3d`，尚待推送；本阶段不自动修改系统配置。
 - 第六里程碑已完成设计、实现、两轮边界修正和独立复审，并提交为 `f7e3503`；尚待推送。
-- 第七里程碑 `support-report` 已完成实现、边界修正和独立复审，并已提交；第八里程碑 v2 尚未提交。
+- 第七里程碑 `support-report` 和第八里程碑 v2 均已完成实现、边界修正、独立复审和本地提交；尚待推送。
 
 下一步：
 
@@ -138,7 +138,7 @@
 
 未提交修改：
 
-- 第八里程碑的 `SupportReport v2`、`NextCheck`、纯推导测试和文档；完成审阅后提交。
+- 无；本次状态文档提交后应保持工作区干净。
 
 ## 关键决策
 
@@ -191,7 +191,7 @@
 ## 暂停检查点
 
 - 当前分支：`main`。
-- 最近稳定提交：第七里程碑及其文档提交；第八里程碑尚未提交，本次状态文档更新后以新的 `main` HEAD 为恢复点。
+- 最近稳定功能提交：第八里程碑 `9f5b951`；本次状态文档提交后以新的 `main` HEAD 为恢复点。
 - 不能丢失的本地数据：`src/`、`tests/`、`docs/`、`pyproject.toml`、本文件。
 - 临时假设：当前只针对 Windows；Linux/macOS 只允许导出 `unknown` 或明确的非 Windows 提示。
 - 恢复时第一步：进入项目根目录，运行 `python -B -m pytest -q -p no:cacheprovider`，再查看 `docs/PROGRESS.md` 的最近验证。
