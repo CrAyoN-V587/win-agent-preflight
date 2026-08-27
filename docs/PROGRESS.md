@@ -5,9 +5,9 @@
 - 当前阶段：`workspace-scope` 提交 `b981bf1` 已推送并通过 Windows CI `32712146556`；本轮按用户要求停止扩展，双端采集协议等待用户在普通 PowerShell 生成 host 快照。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
 - 最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff、diff check 和真实三项目矩阵已通过；Windows CI `32712146556` 的 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传也已通过。
-- 未完成项：用户在普通 PowerShell 生成 `context-run-02\host.json`，与已验证的同轮 Codex 快照完成严格比较。
+- 未完成项：用户在项目根的普通 PowerShell 以 `--timeout 5` 生成 `context-run-03\host.json`，与已验证的同轮 Codex 快照完成严格比较。
 - 2026-08-27 路线复审完成：定位收敛为 Windows host/Agent 执行上下文差异诊断；不再以增加 doctor 数量为进度指标。
-- 下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 以 `--timeout 2` 采集 `context-run-02\host.json`；恢复任务后由 Agent 运行严格 host ↔ Codex `compare`、形成脱敏案例并收敛首选入口。GitHub CLI 已认证，无需再次认证。
+- 下一步：用户按 `docs/context-comparison.md` 的自包含命令设置项目 cwd，并以 `--timeout 5` 采集 `context-run-03\host.json`；恢复任务后由 Agent 运行严格 compare、形成脱敏案例并收敛首选入口。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -157,14 +157,16 @@
 
 ## 阶段 12：Host/Agent 双端采集协议
 
-状态：`context-run-01` 初步比较完成；`context-run-02` Codex 端证据已完成，等待同轮 host 端手动触发。
+状态：前两轮已定位采集协议问题；`context-run-03` Codex 端证据已完成，等待同项目、同 timeout 的 host 端手动触发。
 
 - [x] 新增 `docs/context-comparison.md`，固定同机、同 cwd、同轮 `%TEMP%` 证据目录和逐对比较流程。
 - [x] 明确只有进入真实 Agent 上下文必须由用户完成；不新增 `capture-pair`、PowerShell 包装或外部 Agent 控制。
 - [x] 当前 Codex 已生成 `context-run-01\codex.json`：写出和重新加载成功，label/cwd/schema 正确，用户目录明文未出现，临时残留为 0，自比较退出 0。
 - [x] 用户已生成 `context-run-01\host.json` 并完成初步 compare：共 8 项差异；因两端相隔三天且宿主 `--timeout 1` 导致 pnpm 冷启动超时，该轮不升级为严格公开案例。
 - [x] 当前 Codex 已用 `--timeout 2` 生成 `context-run-02\codex.json`：label/cwd/schema 正确，用户名、常见 token/key 和邮箱模式命中为 0，自比较退出 0。
-- [ ] 用户在宿主 PowerShell 以相同 `--timeout 2` 生成 `context-run-02\host.json`，完成严格 host ↔ Codex 比较；Claude/DSH 未安装或不可用时明确记录未采集。
+- [x] 用户已生成 `context-run-02\host.json` 并完成 compare：host cwd 为 System32，不满足同项目条件；2 秒 timeout 仍让宿主 pnpm 超时，因此保留为协议反例。
+- [x] 当前 Codex 已在项目根以 `--timeout 5` 生成 `context-run-03\codex.json`：pnpm/Codex 均 pass，label/cwd/schema 正确，敏感模式命中为 0，自比较退出 0。
+- [ ] 用户在项目根的宿主 PowerShell 以相同 `--timeout 5` 生成 `context-run-03\host.json`，完成严格 host ↔ Codex 比较；Claude/DSH 未安装或不可用时明确记录未采集。
 
 ## 阶段 13：command-doctor 单命令诊断
 
@@ -218,8 +220,8 @@
 
 - 当前阶段：路线与重合度复审已完成；现有实现保持不变，等待 host 快照，不继续增加推测性功能。
 - 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过。
-- 未完成项：用户生成 `context-run-02\host.json`，与已生成的同轮 Codex 快照完成严格 compare。
-- 下一步：用户在普通 PowerShell 使用 `--timeout 2` 采集 host 快照；恢复任务后由 Agent 执行 compare。GitHub CLI 已认证，无需再次认证。
+- 未完成项：用户在项目根生成 `context-run-03\host.json`，与已生成的同轮 Codex 快照完成严格 compare。
+- 下一步：用户在普通 PowerShell 执行包含 `Set-Location` 的完整命令，并使用 `--timeout 5`；恢复任务后由 Agent 执行 compare。GitHub CLI 已认证，无需再次认证。
 - 后续先完成真实案例和用户验证；只有真实 compare、至少两名用户重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
 - 恢复命令：
 

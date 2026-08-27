@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：等待用户输入（`context-run-01` 初步比较完成；等待 `context-run-02` 同轮 host 快照）
+状态：等待用户输入（前两轮已识别采集协议问题；等待 `context-run-03` 同项目 host 快照）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-27
@@ -10,9 +10,9 @@
 
 一句话目标：提供面向 Windows Coding Agent 的执行上下文差异诊断，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 
-当前阶段：竞品和公开问题复审表明需求成立，路线已从“继续增加 doctor”转为“完成真实成对证据、收敛使用入口、取得外部反馈”。`context-run-01` 已得到 8 项初步差异，但 host 与 Codex 快照相隔三天且宿主 `--timeout 1` 造成 pnpm 超时噪声；当前 Codex 已用 `--timeout 2` 生成 `context-run-02\codex.json`，等待同轮 host 快照。
+当前阶段：路线已转为“完成真实成对证据、收敛使用入口、取得外部反馈”。`context-run-01` 暴露跨日期与 1 秒 timeout 噪声；`context-run-02` 暴露 host cwd 错误，且 2 秒仍使宿主 pnpm 超时。当前 Codex 已在项目根以 `--timeout 5` 生成并验证 `context-run-03\codex.json`，等待同轮 host 快照。
 
-下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `context-run-02\host.json`；恢复任务后由 Agent 立即运行严格 host ↔ Codex `compare`。
+下一步：用户按 `docs/context-comparison.md` 的完整自包含命令在普通 PowerShell 生成 `context-run-03\host.json`；恢复任务后由 Agent 立即运行严格 host ↔ Codex `compare`。
 
 最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff 和 diff check 已通过；真实矩阵得到 Triton `both_usable`，MyMineCraft/MCP Lab `target_specific_failure`，四个目录无残留。提交 `b981bf1` 的 main CI [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已完成 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传（详见 `docs/PROGRESS.md`）。
 
@@ -168,11 +168,11 @@
 当前阻塞：
 
 - 无认证、本地实现、Windows CI 或制品安装阻塞。
-- `context-run-01` 的两份快照均已生成并完成初步比较，但采集相隔三天，且 1 秒 timeout 对宿主 pnpm 产生噪声，因此不作为严格公开证据。`context-run-02\codex.json` 已生成并通过自比较/脱敏检查；仍需用户在普通 PowerShell 生成同轮 host 快照。
+- `context-run-01` 因跨日期和 1 秒 timeout 噪声、`context-run-02` 因 host cwd 为 System32 且 2 秒 pnpm 超时而不作为严格公开证据。`context-run-03\codex.json` 已在项目根以 5 秒 timeout 生成，并通过自比较/脱敏检查；仍需用户生成同轮 host 快照。
 
 下一步：
 
-- 用户按 `docs/context-comparison.md` 在普通 PowerShell 以 `--timeout 2` 生成 `context-run-02\host.json`；恢复任务后由 Agent 执行严格 host ↔ Codex `compare`。
+- 用户按 `docs/context-comparison.md` 在普通 PowerShell 先 `Set-Location` 到项目根，再以 `--timeout 5` 生成 `context-run-03\host.json`；恢复任务后由 Agent 执行严格 host ↔ Codex `compare`。
 - 比较完成后先沉淀一份脱敏案例和首选操作路径，再决定是否调整 CLI；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
 - 随后邀请 3–5 名 Windows + Codex/Claude 用户试运行；根据重复反馈在 Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络对照中最多选择一个切片。
 

@@ -6,7 +6,7 @@
 
 - 目标：作为 Windows Coding Agent 的执行上下文差异诊断工具，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：既有切片均有本地及远程 Windows CI/包验收证据；`context-run-01` 已完成跨日期初步比较，`context-run-02\codex.json` 已在当前 Agent 生成并验证，当前等待用户以同一 `--timeout 2` 采集同轮 host 快照。
+- 当前阶段：既有切片均有本地及远程 Windows CI/包验收证据；前两轮分别暴露跨日期和错误 cwd/短 timeout 的采集问题，`context-run-03\codex.json` 已在项目根以 `--timeout 5` 生成并验证，当前等待同轮 host 快照。
 
 ## 环境和命令
 
