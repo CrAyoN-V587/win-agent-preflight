@@ -32,7 +32,7 @@ python -B -m win_agent_preflight snapshot `
   --label host `
   --output (Join-Path $EvidenceDir "host.json") `
   --pretty `
-  --timeout 1
+  --timeout 2
 ```
 
 若诊断的不是本仓库，且工具已安装为命令行入口，将 `python -B -m win_agent_preflight` 替换为 `agent-preflight`。
@@ -49,7 +49,7 @@ python -B -m win_agent_preflight snapshot `
   --label codex `
   --output (Join-Path $EvidenceDir "codex.json") `
   --pretty `
-  --timeout 1
+  --timeout 2
 ```
 
 上例是本仓库自测入口。诊断其他项目时，与 host 端相同，把 `python -B -m win_agent_preflight` 替换为两端均已验证的 `agent-preflight`。
@@ -95,13 +95,15 @@ python -B -m win_agent_preflight compare `
 - label 为 `codex`，cwd 为本仓库根目录，schema 为 v1，明文用户目录未出现在 JSON 中，临时文件残留为 0。
 - 该文件与自身比较返回等价 `0`。
 - host 端仍需用户在普通 PowerShell 中执行第 1 步，才能形成真实成对证据。
+- 2026-08-27 已完成 `context-run-01` 初步比较并发现 8 项差异，但两份快照相隔三天；宿主侧 1 秒 timeout 还造成 pnpm 冷启动超时，因此该轮只用于发现流程问题，不作为严格公开案例。
+- 当前 Codex 已用 2 秒 timeout 生成并验证 `context-run-02\codex.json`；用户名、常见 token/key 和邮箱模式命中均为 0，自比较等价。
 
 ## 用户现在需要完成
 
 1. 打开 Codex 外部的普通 PowerShell 窗口，不要在 Codex 内置终端运行 host 命令。
-2. 将第 0 节 `$TargetProject` 改为本仓库绝对路径，并保持证据目录为 `context-run-01`，以便与现有 `codex.json` 配对。
+2. 将第 0 节 `$TargetProject` 改为本仓库绝对路径，并将证据目录改为 `context-run-02`，以便与新生成的 `codex.json` 配对。
 3. 原样运行第 1 节命令，确认退出码为 `0` 且 `host.json` 存在；不要加 `--force` 覆盖来源不明的旧文件。
 4. 把 PowerShell 输出以及 `host.json` 的实际完整路径发给 Codex。不要直接粘贴整个 JSON；Codex 会读取文件、运行 `compare` 并检查脱敏边界。
 5. 首次比较完成后，确认是否允许把脱敏后的案例摘要加入公开文档。原始快照不会被自动提交或上传。
 
-如果 `host.json` 已存在，使用新的轮次目录（例如 `context-run-02`），并让 Codex 在同一轮目录重新采集对应的 `codex.json`，不要混用不同轮次的文件。
+如果 `context-run-02\host.json` 已存在，不要覆盖；告诉 Codex 后改用新的轮次目录，并在两端都使用相同 timeout 重新采集，不要混用不同轮次或不同 timeout 的文件。
