@@ -118,6 +118,7 @@ py -3.12 -m build --sdist --wheel
 - [`docs/design.md`](docs/design.md)：首阶段架构和数据边界；
 - [`docs/research.md`](docs/research.md)：需求研究和取舍；
 - [`docs/host-codex-case-study.md`](docs/host-codex-case-study.md)：首组真实 host ↔ Codex 差分案例与路线影响；
+- [`docs/external-pilot-guide.md`](docs/external-pilot-guide.md)：可直接转发的外部试运行步骤、回传模板和风险边界；
 - [`docs/PROGRESS.md`](docs/PROGRESS.md)：按里程碑记录实际验证与下一步；
 - [`docs/release-check.md`](docs/release-check.md)：本地构建、双制品和干净虚拟环境验收。
 

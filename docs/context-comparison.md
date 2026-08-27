@@ -2,6 +2,8 @@
 
 这份协议用于比较同一台 Windows 机器上“普通宿主终端”和 Coding Agent 实际命令执行器看到的环境。它复用现有 `snapshot` 与 `compare`，不启动外部 Agent、不登录账户、不修改 PATH、权限或执行策略。
 
+需要把流程直接发给外部试运行者时，优先使用 [`external-pilot-guide.md`](external-pilot-guide.md)；本文件保留协议细节和项目实测记录。
+
 这是当前项目路线的最高优先级验收。完成首组真实证据前，不继续增加新探针。
 
 ## 为什么必须双端手动触发

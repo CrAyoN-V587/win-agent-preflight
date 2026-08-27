@@ -7,7 +7,7 @@
 - 最近验证：严格 host ↔ Codex compare 退出 1 并报告 8 项有效差异；cwd/Python/5 秒 timeout 一致，敏感模式命中为 0。运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过。
 - 未完成项：尚无 3–5 名外部用户的成对采集和可理解性反馈。
 - 2026-08-27 路线复审完成：定位收敛为 Windows host/Agent 执行上下文差异诊断；不再以增加 doctor 数量为进度指标。
-- 下一步：以 `docs/context-comparison.md` 和 `docs/host-codex-case-study.md` 邀请 3–5 名外部用户试运行；根据重复反馈决定是否设计紧凑 Agent 输出或成对证据预验证。GitHub CLI 已认证，无需再次认证。
+- 下一步：将 `docs/external-pilot-guide.md` 发给 3–5 名外部用户，收集最小回传模板；根据重复反馈决定是否设计紧凑 Agent 输出或成对证据预验证。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -227,12 +227,22 @@
 - [x] 新增 `docs/host-codex-case-study.md`，只公开归约事实、被拒绝轮次和路线影响；原始快照留在 `%TEMP%`。
 - [x] 路线结论：先获取 3–5 名外部用户反馈，再决定紧凑输出/成对证据预验证；当前不增加探针或自动修复。
 
+## 阶段 18：外部试运行手册
+
+状态：完成；运行时代码未修改。
+
+- [x] 新增 `docs/external-pilot-guide.md`，覆盖参与条件、准备、Agent/Host 双端命令、compare 退出码和停止条件。
+- [x] 默认只回传匿名归约模板，不发送原始快照、完整 compare、PATH、账号或绝对路径。
+- [x] 明确原始 JSON 仍可能包含软件版本、非用户目录和 runtime 信息，不能因 `%USERPROFILE%` 脱敏就默认公开。
+- [x] 风险说明覆盖隐私暴露、第三方 launcher、Agent 写入限制、不同 cwd/轮次/timeout 假差异和资源占用。
+- [x] 不要求管理员权限、账号登录、关闭安全策略或自行修复；异常时只回传脱敏错误摘要。
+
 ## 暂停检查点
 
-- 当前阶段：首组严格案例和公开归约摘要已完成；现有实现保持不变，准备外部试运行，不继续增加推测性功能。
+- 当前阶段：首组严格案例和外部试运行手册已完成；现有实现保持不变，等待 3–5 名用户反馈，不继续增加推测性功能。
 - 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过。
 - 未完成项：3–5 名外部 Windows Coding Agent 用户尚未完成试运行。
-- 下一步：分享案例和采集协议，记录一次成功率、故障是否可解释和重复缺口。GitHub CLI 已认证，无需再次认证。
+- 下一步：分享 `docs/external-pilot-guide.md`，记录一次成功率、故障是否可解释和重复缺口。GitHub CLI 已认证，无需再次认证。
 - 后续先完成真实案例和用户验证；只有真实 compare、至少两名用户重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
 - 恢复命令：
 
@@ -308,6 +318,7 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | workspace-scope GitHub Windows CI | [run 32712146556](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) | 提交 `b981bf1` 的 Python 3.12/3.14 全量 261 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-27 | 路线文档复审 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check`、真实 `support-report --json --timeout 1` | 全量 261 项测试通过；Ruff、diff check 和真实 CLI 通过；本轮只更新定位、路线、需求证据与用户操作说明，未修改运行时代码 |
 | 2026-08-27 | 首组严格 host ↔ Codex 案例 | 同项目 cwd、同 Python、同 `--timeout 5` 分别运行 snapshot，再执行 compare 和敏感模式检查 | 两端相隔约 9 分钟；compare 退出 1、报告 8 项有效差异；用户名、常见 GitHub/OpenAI token/key、邮箱模式命中均为 0；全量 261 项测试、Ruff 和 diff check 通过 |
+| 2026-08-27 | 外部试运行手册 | 审阅准备/双端采集/compare/回传/风险/停止/清理流程；运行全量测试、Ruff、diff check 和链接存在性检查 | 261 项测试、Ruff、diff check 通过；手册和所有入口链接存在；运行时代码未修改 |
 
 ## 下一里程碑验收
 

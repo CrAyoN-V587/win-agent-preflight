@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：阶段完成（首组严格 host ↔ Codex 案例已形成；下一阶段为外部试运行）
+状态：等待外部反馈（首组严格案例和试运行手册已完成）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-27
@@ -12,7 +12,7 @@
 
 当前阶段：首组严格 host ↔ Codex 案例已完成。两端使用相同项目 cwd、Python 解释器和 5 秒 timeout，采集相隔约 9 分钟；`compare` 退出 1 并报告 8 项有效差异，归约结果见 `docs/host-codex-case-study.md`。现有探针暂停扩展，进入 3–5 名外部用户试运行阶段。
 
-下一步：准备一条面向外部用户的最短试运行路径，邀请 3–5 名 Windows + Codex/Claude 用户执行；根据重复反馈决定是否需要紧凑 Agent 输出或成对证据预验证。
+下一步：将 `docs/external-pilot-guide.md` 发给 3–5 名 Windows + Codex/Claude 用户，收集其中的最小回传模板；根据重复反馈决定是否需要紧凑 Agent 输出或成对证据预验证。
 
 最近验证：严格 host ↔ Codex compare 退出 1 并报告 8 项有效差异；两端 cwd、Python 和 5 秒 timeout 一致，敏感模式命中为 0，原始快照未提交。运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过（详见 `docs/PROGRESS.md`）。
 
@@ -171,7 +171,7 @@
 
 下一步：
 
-- 将 `docs/host-codex-case-study.md` 与 `docs/context-comparison.md` 作为试运行材料，邀请 3–5 名 Windows + Codex/Claude 用户执行。
+- 将 `docs/external-pilot-guide.md` 作为主试运行材料；案例和详细采集协议只作为补充背景。
 - 记录他们是否能一次完成同 cwd/轮次/timeout 的成对采集，以及报告是否能回答实际故障；不要只统计命令是否运行成功。
 - 根据重复反馈决定紧凑 Agent 输出或成对证据预验证；再从 Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络对照中最多选择一个切片。
 

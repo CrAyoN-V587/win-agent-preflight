@@ -6,7 +6,7 @@
 
 - 目标：作为 Windows Coding Agent 的执行上下文差异诊断工具，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：首组严格 host ↔ Codex 案例已完成并形成公开归约摘要；现有探针暂停扩展，下一阶段是 3–5 名 Windows Coding Agent 用户试运行和首选入口验证。
+- 当前阶段：首组严格案例和可直接转发的外部试运行手册已完成；现有探针暂停扩展，等待 3–5 名 Windows Coding Agent 用户反馈。
 
 ## 环境和命令
 
