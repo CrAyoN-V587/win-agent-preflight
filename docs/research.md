@@ -50,6 +50,12 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 4. 可选 Agent 未安装不应被错误报告为系统故障。
 5. 外部命令卡住时，诊断工具必须在有限时间内返回并报告 timeout，而不是继续等待。
 
+## 首组真实差分验证（2026-08-27）
+
+同一 Windows 机器、同一项目 cwd、同一 Python 和 5 秒 timeout 的 host ↔ Codex 快照相隔约 9 分钟，`compare` 报告 8 项有效差异。Codex 明确注入自己的 runtime PATH、捆绑 PowerShell、Git/pnpm fallback 和内部 CLI；Git/Python/npm/pnpm 的最终选择或版本仍与宿主一致。完整归约见 [`host-codex-case-study.md`](host-codex-case-study.md)。
+
+前两轮也提供了需求证据：跨日期快照、错误 cwd 和 1–2 秒 timeout 会制造无法归因或不稳定的差异。当前最急迫的产品风险因此不是探针不足，而是成对采集协议是否能让新用户一次正确执行。下一阶段先获取 3–5 名外部用户反馈，再决定是否需要紧凑 Agent 输出或成对证据预验证。
+
 ## 首阶段取舍
 
 - 不联网：网络本身属于下一阶段对照探针，且无需 API。

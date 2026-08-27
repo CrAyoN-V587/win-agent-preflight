@@ -26,7 +26,7 @@ Windows execution-context differential preflight for AI coding agents.
 - 对显式 Git target 做离线本地就绪诊断：检查 Git launcher、work tree、commit identity、origin 归约、credential helper 和必要的 GitHub CLI launcher，不验证远程认证；
 - 对用户目录进行 `%USERPROFILE%` 脱敏，不采集密钥值，不联网，不修改系统配置。
 
-真实 Agent 宿主终端快照仍需在各上下文中分别采集，进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
+真实 Agent 宿主终端快照仍需在各上下文中分别采集。首组同 cwd、同解释器、同 timeout 的 host ↔ Codex 案例已完成，见 [`docs/host-codex-case-study.md`](docs/host-codex-case-study.md)；项目进度见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
 
 ## 环境
 
@@ -68,10 +68,10 @@ agent-preflight project-doctor --target . --json --pretty
 
 下一阶段按以下顺序推进：
 
-1. 完成并人工检查一组真实 host ↔ Codex 脱敏案例；
-2. 用该案例收敛一条新用户首选路径，优先评估紧凑的 Agent 输出或单一 `preflight` 入口；
-3. 邀请 3–5 名 Windows Coding Agent 用户试运行；
-4. 只在重复证据支持时，从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。
+1. 使用已完成的真实案例和采集协议邀请 3–5 名 Windows Coding Agent 用户试运行；
+2. 记录他们能否一次固定 cwd、轮次和 timeout，以及报告能否解释实际故障；
+3. 若操作错误重复出现，优先评估紧凑 Agent 输出或成对证据预验证；
+4. 只在重复诊断缺口支持时，从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。
 
 暂不建设自动修复、Agent 配置同步、MCP/Memory/Skill 治理、GUI/团队控制面、广泛安全审计或通用 Windows 全科诊断。竞品和需求证据见 [`docs/research.md`](docs/research.md)。
 
@@ -117,6 +117,7 @@ py -3.12 -m build --sdist --wheel
 - [`PROJECT.md`](PROJECT.md)：目标、范围、成功标准、暂停恢复入口；
 - [`docs/design.md`](docs/design.md)：首阶段架构和数据边界；
 - [`docs/research.md`](docs/research.md)：需求研究和取舍；
+- [`docs/host-codex-case-study.md`](docs/host-codex-case-study.md)：首组真实 host ↔ Codex 差分案例与路线影响；
 - [`docs/PROGRESS.md`](docs/PROGRESS.md)：按里程碑记录实际验证与下一步；
 - [`docs/release-check.md`](docs/release-check.md)：本地构建、双制品和干净虚拟环境验收。
 

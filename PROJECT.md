@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：等待用户输入（前两轮已识别采集协议问题；等待 `context-run-03` 同项目 host 快照）
+状态：阶段完成（首组严格 host ↔ Codex 案例已形成；下一阶段为外部试运行）
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-27
@@ -10,11 +10,11 @@
 
 一句话目标：提供面向 Windows Coding Agent 的执行上下文差异诊断，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 
-当前阶段：路线已转为“完成真实成对证据、收敛使用入口、取得外部反馈”。`context-run-01` 暴露跨日期与 1 秒 timeout 噪声；`context-run-02` 暴露 host cwd 错误，且 2 秒仍使宿主 pnpm 超时。当前 Codex 已在项目根以 `--timeout 5` 生成并验证 `context-run-03\codex.json`，等待同轮 host 快照。
+当前阶段：首组严格 host ↔ Codex 案例已完成。两端使用相同项目 cwd、Python 解释器和 5 秒 timeout，采集相隔约 9 分钟；`compare` 退出 1 并报告 8 项有效差异，归约结果见 `docs/host-codex-case-study.md`。现有探针暂停扩展，进入 3–5 名外部用户试运行阶段。
 
-下一步：用户按 `docs/context-comparison.md` 的完整自包含命令在普通 PowerShell 生成 `context-run-03\host.json`；恢复任务后由 Agent 立即运行严格 host ↔ Codex `compare`。
+下一步：准备一条面向外部用户的最短试运行路径，邀请 3–5 名 Windows + Codex/Claude 用户执行；根据重复反馈决定是否需要紧凑 Agent 输出或成对证据预验证。
 
-最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff 和 diff check 已通过；真实矩阵得到 Triton `both_usable`，MyMineCraft/MCP Lab `target_specific_failure`，四个目录无残留。提交 `b981bf1` 的 main CI [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已完成 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传（详见 `docs/PROGRESS.md`）。
+最近验证：严格 host ↔ Codex compare 退出 1 并报告 8 项有效差异；两端 cwd、Python 和 5 秒 timeout 一致，敏感模式命中为 0，原始快照未提交。运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过（详见 `docs/PROGRESS.md`）。
 
 真实项目复验：`project-doctor` 正确识别 MyMineCraft 的 Node + pnpm 和 MCP Interop Lab 的 Python；两份无标准依赖 marker 的旧 Triton 源码树保守返回 `unknown`。同一 Codex 上下文的 `workspace-probe` 在 Triton 优化项目六步通过，在 MyMineCraft 与 MCP Interop Lab 创建目录时返回 WinError 5；三次均无残留。
 
@@ -96,8 +96,8 @@
 - [x] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已通过本地及远程验证。
 - [x] `git-doctor` 独立 v1：固定只读命令、状态归约、脱敏、CLI/退出码和常见 remote 边界已通过本地及远程验证。
 - [x] `workspace-scope` 独立 v1：双目录预验证、target/control 单次顺序调用、usable/failed/unknown 归约、完整/partial `inconclusive`、CLI/Console/JSON 和 cp1252 help 已完成本地及远程验证。
-- [ ] 完成一组同机、同项目、同工具版本的真实 host ↔ Codex 快照和差异报告，并公开一份人工检查后的脱敏案例。
-- [ ] 用真实案例验证一条首选使用路径，再决定是否实现紧凑的 Agent 输出或单一 `preflight` 入口。
+- [x] 完成一组同机、同项目、同工具版本的真实 host ↔ Codex 快照和差异报告，并公开一份人工检查后的脱敏案例。
+- [x] 用真实案例验证现有成对采集路径：确认 cwd/轮次/timeout 是必要前置条件，下一步先做外部试运行，不立即实现新入口。
 - [ ] 邀请 3–5 名 Windows Coding Agent 用户试运行，以重复问题而不是推测决定下一项探针。
 
 ## 计划
@@ -120,8 +120,8 @@
 - [x] 16. 增加独立 `git-doctor` v1：离线判断本地 Git readiness；不验证远程认证、不联网、不写配置；设计、实现、复审与远程验证完成。
 - [x] 17. 增加独立 `workspace-scope` v1：预验证两个显式目录后按 target/control 各调用一次既有 probe；设计、实现、复审、真实矩阵与远程验证完成。
 - [x] 18. 复审同类项目和公开需求，将主路线收敛为 Windows host/Agent 执行上下文差异诊断；保留离线、只读、不自动修复边界。
-- [ ] 19. 完成真实 host ↔ Codex 成对采集，形成脱敏案例、差异解释和可复验命令。
-- [ ] 20. 根据真实案例收敛首选使用入口；优先评估紧凑的 Agent 输出，不先增加新探针。
+- [x] 19. 完成真实 host ↔ Codex 成对采集，形成脱敏案例、差异解释和可复验命令。
+- [x] 20. 根据真实案例收敛路线：先由 3–5 名外部用户验证文档；若仍重复混用 cwd/轮次/timeout，再设计紧凑输出或成对证据预验证，不先增加新探针。
 - [ ] 21. 获取 3–5 名外部 Windows 用户反馈；只有重复出现的缺口才进入 Shell、WindowsApps launcher chain 或可选网络对照设计。
 
 ## 技术和环境
@@ -167,14 +167,13 @@
 
 当前阻塞：
 
-- 无认证、本地实现、Windows CI 或制品安装阻塞。
-- `context-run-01` 因跨日期和 1 秒 timeout 噪声、`context-run-02` 因 host cwd 为 System32 且 2 秒 pnpm 超时而不作为严格公开证据。`context-run-03\codex.json` 已在项目根以 5 秒 timeout 生成，并通过自比较/脱敏检查；仍需用户生成同轮 host 快照。
+- 无实现、认证或成对采集阻塞。`context-run-03` 已完成严格比较；原始快照留在本机 `%TEMP%`，公开仓库只记录脱敏归约摘要。
 
 下一步：
 
-- 用户按 `docs/context-comparison.md` 在普通 PowerShell 先 `Set-Location` 到项目根，再以 `--timeout 5` 生成 `context-run-03\host.json`；恢复任务后由 Agent 执行严格 host ↔ Codex `compare`。
-- 比较完成后先沉淀一份脱敏案例和首选操作路径，再决定是否调整 CLI；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
-- 随后邀请 3–5 名 Windows + Codex/Claude 用户试运行；根据重复反馈在 Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络对照中最多选择一个切片。
+- 将 `docs/host-codex-case-study.md` 与 `docs/context-comparison.md` 作为试运行材料，邀请 3–5 名 Windows + Codex/Claude 用户执行。
+- 记录他们是否能一次完成同 cwd/轮次/timeout 的成对采集，以及报告是否能回答实际故障；不要只统计命令是否运行成功。
+- 根据重复反馈决定紧凑 Agent 输出或成对证据预验证；再从 Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络对照中最多选择一个切片。
 
 本轮停止与恢复边界：
 
