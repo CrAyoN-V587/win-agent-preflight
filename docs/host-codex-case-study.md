@@ -6,7 +6,7 @@
 
 这组证据验证了项目的核心假设：Codex 执行环境不是宿主终端环境的简单复制。它会注入自己的 PATH、PowerShell、Git/pnpm fallback 和内部 CLI；同时，Git、Python、npm、pnpm 等共享工具仍可能选择与宿主完全相同的版本。
 
-原始 `host.json`/`codex.json` 只保留在本机 `%TEMP%`，没有提交或上传。本文件只记录人工归约后的公开摘要。
+原始 `host.json`/`codex.json` 只保留在采集机器的 `%TEMP%`，没有提交或上传。本文件只记录人工归约后的公开摘要。
 
 ## 采集条件
 
@@ -25,10 +25,10 @@
 | --- | --- | --- | --- |
 | PATH | 常规系统与用户 PATH | 额外注入 Codex 临时目录、runtime override/fallback、原生 PowerShell/Git 和内部 CLI 目录 | 证明 Agent 子进程环境经过显式编排 |
 | Codex launcher | 当前 PATH 未发现 | 内部 `codex.exe` 可执行，版本 `codex-cli 0.150.0-alpha.8` | 桌面 Agent 内部 CLI 可用不代表宿主已安装公开 CLI |
-| Git | 选择系统 Git `2.55.0.windows.2` | 选择同一系统 Git，同时存在 Codex fallback 候选 | fallback 存在但没有改变本轮实际选择 |
-| pnpm | 选择用户安装的 `pnpm.cmd` `11.22.0` | 选择同一 `pnpm.cmd` `11.22.0`，同时存在未被选择的 Codex fallback 候选 | 两端实际工具一致；严格本轮没有执行或推断 fallback 版本 |
+| Git | 选择系统 Git `2.55.0.windows.2` | 选择同一系统 Git，同时存在 Codex fallback 候选 | fallback 存在但没有改变该案例的实际选择 |
+| pnpm | 选择 Host 侧安装的 `pnpm.cmd` `11.22.0` | 选择同一 `pnpm.cmd` `11.22.0`，同时存在未被选择的 Codex fallback 候选 | 两端实际工具一致；严格案例没有执行或推断 fallback 版本 |
 | Python | 选择 `%PYTHON_HOME%\python.exe`，另可见 WindowsApps alias | 选择同一 Python，未报告该 alias 候选 | `%PYTHON_HOME%` 是公开摘要占位符；不应只比较“命令成功”，候选链也可能不同 |
-| npm Shell | Windows PowerShell，npm `11.17.0` | Codex 捆绑 `pwsh`，npm 仍为 `11.17.0` | Shell 不同但本轮命令结果一致 |
+| npm Shell | Windows PowerShell，npm `11.17.0` | Codex 捆绑 `pwsh`，npm 仍为 `11.17.0` | Shell 不同但该案例的命令结果一致 |
 | PATH refresh | warning：当前宿主进程缺少两个配置项占位符 | pass | 当前进程继承状态不同，不等同于工具不可用 |
 | Execution Policy | `CurrentUser=RemoteSigned`、`LocalMachine=Undefined` | `CurrentUser=Undefined`、`LocalMachine=RemoteSigned` | 由不同 PowerShell 实现报告；不能直接解释成权限更强或更弱 |
 
@@ -44,7 +44,7 @@
 
 1. 暂不增加新的系统探针。现有能力已经能发现 PATH 注入、launcher 候选和 Shell 差异。
 2. 首要体验问题是成对采集容易混用 cwd、轮次和 timeout；短 timeout 还会制造假差异。
-3. 下一步先让 3–5 名 Windows Coding Agent 用户复现这条流程，验证文档是否足够自解释。
+3. 下一步先邀请 3–5 名 Windows Coding Agent 参与者复现这条流程，验证文档是否足够自解释。
 4. 若外部试用仍频繁出现操作错误，优先设计紧凑的 Agent 输出或成对证据预验证；不立即建设自动进入 Agent、自动修复或更多 doctor。
 5. 只有重复反馈支持时，才从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。
 

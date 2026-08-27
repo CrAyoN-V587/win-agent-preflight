@@ -4,7 +4,7 @@
 
 Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问题，而是分层问题：当前进程 PATH、PowerShell 解析、脚本执行策略、子进程继承、Agent 沙箱和工作区能力可能不同。产品自带诊断通常只覆盖自己的产品，不能形成跨 Agent 的中立事实报告。
 
-首阶段因此只做确定性本地扫描，优先覆盖用户已经遇到的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突；第六里程碑的 `agent-doctor` 进一步只探测已解析启动器的离线版本能力。2026-08-27 复审后，主路线进一步收敛为“Windows host/Agent 执行上下文差异诊断”，不再用新增 doctor 数量衡量进度。
+首阶段因此只做确定性本地扫描，优先覆盖早期实测出现的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突；第六里程碑的 `agent-doctor` 进一步只探测已解析启动器的离线版本能力。2026-08-27 复审后，主路线进一步收敛为“Windows Host/Agent 执行上下文差异诊断”，不再用新增 doctor 数量衡量进度。
 
 ## 官方 CLI 事实与本项目边界（2026-08-24）
 
@@ -22,7 +22,7 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 - [Microsoft APM Doctor](https://microsoft.github.io/apm/reference/cli/doctor/)、[React Native Doctor](https://reactnative.dev/blog/2019/11/18/react-native-doctor.html)、[Expo Doctor](https://docs.expo.dev/develop/tools/) 和 [.NET MAUI 环境诊断](https://learn.microsoft.com/en-us/dotnet/maui/developer-tools/cli/environment-diagnostics?view=net-maui-10.0) 证明确定性 preflight/doctor 是成熟的工具形态，但它们服务各自生态，不比较编码 Agent 与宿主进程。
 - [NVIDIA-Agent-Doctor](https://github.com/karthikrshet/NVIDIA-Agent-Doctor) 同样采用本地优先、结构化 JSON 和只读默认值，但服务 GPU/CUDA/Docker/MCP 环境；[Laravel Doctor](https://github.com/laravel/doctor) 的紧凑 Agent 输出值得作为后续入口设计参考。
 
-本轮检索没有发现成熟且完全替代“同机 host 与真实 Coding Agent 分别采样，再比较 PATH、launcher、Shell 和工作区能力”的项目。组件重合度较高，产品级完全重合度较低；因此不应宣称没有竞品，也不应把项目描述成通用 Agent Doctor。
+2026-08-27 的公开资料检索没有发现成熟且完全替代“同机 host 与真实 Coding Agent 分别采样，再比较 PATH、launcher、Shell 和工作区能力”的项目。组件重合度较高，产品级完全重合度较低；因此不应宣称没有竞品，也不应把项目描述成通用 Agent Doctor。
 
 ## 公开需求证据（2026-08-27）
 
@@ -31,14 +31,14 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 - Claude Code 已出现用户 PATH 已更新但继承进程仍提示命令缺失、终端重启后才刷新，以及 PowerShell/Git Bash 选择不一致的问题：[anthropics/claude-code#32098](https://github.com/anthropics/claude-code/issues/32098)、[anthropics/claude-code#18064](https://github.com/anthropics/claude-code/issues/18064)、[anthropics/claude-code#83889](https://github.com/anthropics/claude-code/issues/83889)。
 - WindowsApps alias 劫持或不可访问的 launcher 也有公开报告：[anthropics/claude-code#25075](https://github.com/anthropics/claude-code/issues/25075)、[openai/codex#35871](https://github.com/openai/codex/issues/35871)。
 
-这些证据支持需求存在，但本仓库当前尚无 Star、Issue 或外部试用反馈形成的采用证据。下一阶段必须用真实双端案例和 3–5 名用户试运行验证可理解性与使用价值，不能把 261 项测试或 CI 通过直接解释为市场验证。
+这些证据支持需求存在，但本仓库当前尚无 Star、Issue 或外部试用反馈形成的采用证据。下一阶段必须用真实双端案例和 3–5 名参与者试运行验证可理解性与使用价值，不能把 261 项测试或 CI 通过直接解释为市场验证。
 
 ## 路线评估（2026-08-27）
 
 - 需求真实性：高；公开问题直接覆盖 PATH 继承、launcher access denied、Shell 差异和目录能力。
 - 重合风险：中等；配置修复、生态 doctor 和 Windows 排障脚本已经存在，但 host ↔ Agent 独立差分仍有空间。
 - 当前实现难度：中等；生产级覆盖 Codex/Claude、Store/原生安装、PowerShell/Git Bash/WSL 和变化中的沙箱行为属于高难度测试矩阵。
-- 最优路线：真实成对案例 → 首选入口或紧凑 Agent 输出 → 3–5 名外部用户 → 一个重复证据驱动的切片。
+- 最优路线：真实成对案例 → 首选入口或紧凑 Agent 输出 → 3–5 名外部参与者 → 一个重复证据驱动的切片。
 - 候选切片：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照；三者都不是当前承诺。
 - 明确非目标：自动修复、Agent 配置治理、MCP/Memory/Skill 管理、GUI/团队控制面、广泛安全审计和通用 Windows 全科诊断。
 
@@ -54,7 +54,7 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 
 同一 Windows 机器、同一项目 cwd、同一 Python 和 5 秒 timeout 的 host ↔ Codex 快照相隔约 9 分钟，`compare` 报告 8 项有效差异。Codex 明确注入自己的 runtime PATH、捆绑 PowerShell、Git/pnpm fallback 和内部 CLI；Git/Python/npm/pnpm 的最终选择或版本仍与宿主一致。完整归约见 [`host-codex-case-study.md`](host-codex-case-study.md)。
 
-前两轮也提供了需求证据：跨日期快照、错误 cwd 和 1–2 秒 timeout 会制造无法归因或不稳定的差异。当前最急迫的产品风险因此不是探针不足，而是成对采集协议是否能让新用户一次正确执行。下一阶段先获取 3–5 名外部用户反馈，再决定是否需要紧凑 Agent 输出或成对证据预验证。
+前两轮也提供了需求证据：跨日期快照、错误 cwd 和 1–2 秒 timeout 会制造无法归因或不稳定的差异。当前最急迫的产品风险因此不是探针不足，而是成对采集协议是否能让新参与者一次正确执行。下一阶段先获取 3–5 名外部参与者反馈，再决定是否需要紧凑 Agent 输出或成对证据预验证。
 
 ## 首阶段取舍
 
@@ -62,7 +62,7 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 - 不自动修复：修改 PATH、注册表或执行策略会改变用户环境，先提供证据和复验方向。
 - 不采集密钥：本地环境变量只采集存在性/命名，不保存值。
 - 不计算哈希：当前没有缓存身份或完整性消费者。
-- Python 3.12.7：本机实际可用版本；记录此事实，后续可在 3.14 环境复验。
+- Python 3.12.7：首次维护环境实际可用版本；后续版本由 CI 与其他维护环境复验。
 
 ## Git Doctor 研究与离线边界（2026-08-24）
 
@@ -79,4 +79,4 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 - 固定查询全部走同一个有界 Runner；Git 子命令使用 `-C TARGET` 而不是改变 Runner cwd。除版本探测外不运行 push、fetch、pull、ls-remote、ssh、credential fill、GCM diagnose 或网络命令。
 - remote URL 只归约为 transport、`github.com|other|local|unknown`、fetch/push 是否同目的和 embedded userinfo 布尔值；不输出 owner/repo、用户名、密码、企业 host、helper 路径或命令 stderr。该归约用于选择是否需要本地 `gh --version`，不是远程连通性验证。
 - 归约边界需区分协议语义：标准 `ssh://git@github.com/...` 的 `git` 是 SSH username，不是 HTTP 凭据；只有 SSH URI 携带 password 才告警。Windows 本地 remote 先按本地路径解析，因此 `C:\Repos\My Repo\origin.git` 中的空格不会被当成 malformed URL；未知 `--show-scope` 输出不算已配置身份。
-- 认证结果必须固定为 `remote_auth_verified=false`，否则离线报告会把“安装了 gh”误写成“已登录 GitHub”。真正的认证/网络验收留给用户显式运行并承担副作用的 Git/gh 工作流。
+- 认证结果必须固定为 `remote_auth_verified=false`，否则离线报告会把“安装了 gh”误写成“已登录 GitHub”。真正的认证/网络验收由操作者在明确知情的边界下显式运行，并承担相应 Git/gh 工作流副作用。

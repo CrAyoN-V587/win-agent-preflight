@@ -6,7 +6,7 @@
 
 - 目标：作为 Windows Coding Agent 的执行上下文差异诊断工具，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：首组严格案例和可直接转发的外部试运行手册已完成；现有探针暂停扩展，等待 3–5 名 Windows Coding Agent 用户反馈。
+- 当前阶段：首组严格案例和可直接转发的外部试运行手册已完成；现有探针暂停扩展，等待 3–5 名 Windows Coding Agent 外部参与者反馈。
 
 ## 环境和命令
 
@@ -70,12 +70,12 @@
 
 ## Git
 
-- 分支约定：由主 Agent 建立仓库后确认。
+- 默认分支为 `main`；其他分支由维护者按具体协作任务创建。
 - 提交粒度：一个可运行、可验证的切片一个逻辑提交。
 - 提交前必须运行：`python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache` 和一次真实 CLI。
-- 远程推送由主 Agent 按用户已给授权执行。
+- 远程推送只由仓库维护者或获得明确授权的自动化/Agent 执行。
 
-## 本机环境建议
+## 维护环境建议
 
-- 保留已验证的 Python 3.12，并建议并行安装 Python 3.14，使用 `py -3.12`/`py -3.14` 选择解释器。
-- 远程操作前用 `gh auth status` 核对 GitHub CLI 身份；当前恢复点已验证认证可用。Node.js、Docker 和 WSL 对当前项目不是必需依赖。
+- 使用 Python 3.12 或更高版本；需要并行版本时，可通过 Python Launcher 的 `py -3.12`/`py -3.14` 选择解释器。
+- 远程操作前由执行操作的维护者用 `gh auth status` 核对 GitHub CLI 身份。认证状态属于本地环境，不作为项目恢复点。Node.js、Docker 和 WSL 对当前项目不是必需依赖。

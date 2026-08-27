@@ -2,17 +2,17 @@
 
 ## 当前快照
 
-- 当前阶段：首组严格 host ↔ Codex 差分案例已完成；现有探针暂停扩展，进入 3–5 名外部 Windows Coding Agent 用户试运行阶段。
+- 当前阶段：首组严格 Host ↔ Codex 差分案例已完成；现有探针暂停扩展，进入 3–5 名外部 Windows Coding Agent 参与者试运行阶段。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：严格 host ↔ Codex compare 退出 1 并报告 8 项有效差异；cwd/Python/5 秒 timeout 一致，敏感模式命中为 0。运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过。
-- 未完成项：尚无 3–5 名外部用户的成对采集和可理解性反馈。
+- 最近验证：严格 Host ↔ Codex compare 退出 1 并报告 8 项有效差异；cwd/Python/5 秒 timeout 一致，敏感模式命中为 0。公开文档受众审阅的本地链接、敏感文本和对话式身份关键词检查通过；运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过。
+- 未完成项：尚无 3–5 名外部参与者的成对采集和可理解性反馈。
 - 2026-08-27 路线复审完成：定位收敛为 Windows host/Agent 执行上下文差异诊断；不再以增加 doctor 数量为进度指标。
-- 下一步：将 `docs/external-pilot-guide.md` 发给 3–5 名外部用户，收集最小回传模板；根据重复反馈决定是否设计紧凑 Agent 输出或成对证据预验证。GitHub CLI 已认证，无需再次认证。
+- 下一步：由维护者将 `docs/external-pilot-guide.md` 发给 3–5 名外部参与者，收集最小回传模板；根据重复反馈决定是否设计紧凑 Agent 输出或成对证据预验证。远程操作由具有仓库权限的维护者执行。
 
-本机建议安装环境（基于当前验证）：
+维护与开发环境建议：
 
-- 必须：Python 3.12.7（已实际验证）和本项目开发依赖；Git 用于后续提交和版本回滚。
-- 明显提效：本机若尚未安装可并行安装 Python 3.14；Python Launcher 已可用，可用 `py -3.12`/`py -3.14` 选择解释器；GitHub CLI 已认证并可用于仓库工作流；PowerShell 7 已可用。
+- 必须：Python 3.12 或更高版本、本项目开发依赖和 Git；Python 3.12.7 已完成首次本地验证。
+- 可选：Python 3.14、Python Launcher、GitHub CLI 和 PowerShell 7。账号与认证状态属于各维护者的本地环境，不记录为项目状态。
 - 暂不需要：Node.js、WSL、Docker、数据库、GUI 和额外 Agent CLI；当前测试、探针和打包路径不依赖它们。
 
 ## 阶段 0：研究和边界
@@ -20,7 +20,7 @@
 状态：完成
 
 - 确认展示名 Windows Agent Preflight、包名 `win_agent_preflight`、CLI `agent-preflight`。
-- 确认 Python 3.12.7 是本机可用版本；不为本阶段引入 3.14 兼容矩阵。
+- 确认 Python 3.12.7 是首次维护环境的可用版本；不为本阶段引入 3.14 兼容矩阵。
 - 固定范围：`scan`、稳定模型、可注入超时 Runner、Windows 命令和 PowerShell 事实、两种输出。
 
 ## 阶段 1：首个可运行切片
@@ -45,7 +45,7 @@
 - [x] `compare` 支持 Console/JSON/pretty；等价 0、实质差异 1、输入/版本/类型错误 2。
 - [x] 窄解析器支持 v1、忽略未知字段，拒绝顶层/内嵌 scan 更高版本和已知字段错误类型。
 - [x] 比较忽略 label、captured_at、summary、candidate_count，并按 CheckResult.id 稳定匹配和规范化集合。
-- [ ] 用户仍需在宿主终端和 Agent 实际终端分别生成两端快照；当前只完成同一当前 Agent 环境自比较。
+- [x] 宿主操作者与真实 Agent 执行器已分别生成两端快照，并完成首组严格 Host ↔ Codex 比较。
 
 ## 阶段 3：只读注册表 PATH 刷新诊断
 
@@ -81,11 +81,11 @@
 - [x] 新增 Windows-only CI：Python 3.12/3.14 测试矩阵、3.12 Ruff、CLI 帮助和 `RUNNER_TEMP` workspace-probe。
 - [x] 测试全部通过后在 Python 3.12 构建一个 sdist 与一个 wheel，并在两个干净虚拟环境分别安装启动。
 - [x] 非 PR 运行上传 7 天制品；不启用缓存、自动发布、签名、SBOM 或跨平台矩阵。
-- [x] 本机 Python 3.12.7 安装 `build 1.5.0`，完成两个制品的真实构建和安装验收。
+- [x] 首次维护环境的 Python 3.12.7 安装 `build 1.5.0`，完成两个制品的真实构建和安装验收。
 - [x] 首次 GitHub CI run `32691934171` 已验证 Python 3.12/3.14 安装与 pytest，以及 Python 3.12 Ruff；两个矩阵 job 在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。
 - [x] 修复后两个矩阵 job 与 package job 已通过；sdist/wheel 均在干净环境安装并运行严格 cp1252 根帮助。
 
-本阶段结论：Git、PowerShell 7、Python 3.12.7、Python Launcher 和项目依赖已足够完成本地研发与打包；本机若尚未安装可并行安装 Python 3.14，GitHub CLI 已认证。Windows CI 已完整验证 3.12/3.14、严格 cp1252 help 与 package job。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
+本阶段结论：Git、Python 3.12.7 和项目依赖已足够完成首次本地研发与打包；Python 3.14、Python Launcher、GitHub CLI 和 PowerShell 7 属于可选维护工具。Windows CI 已完整验证 3.12/3.14、严格 cp1252 help 与 package job。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
 
 ## 阶段 6：Agent Doctor 最小版本探针
 
@@ -160,13 +160,13 @@
 状态：完成；首组严格同项目、同解释器、同 timeout 的 host ↔ Codex 案例已形成。
 
 - [x] 新增 `docs/context-comparison.md`，固定同机、同 cwd、同轮 `%TEMP%` 证据目录和逐对比较流程。
-- [x] 明确只有进入真实 Agent 上下文必须由用户完成；不新增 `capture-pair`、PowerShell 包装或外部 Agent 控制。
-- [x] 当前 Codex 已生成 `context-run-01\codex.json`：写出和重新加载成功，label/cwd/schema 正确，用户目录明文未出现，临时残留为 0，自比较退出 0。
-- [x] 用户已生成 `context-run-01\host.json` 并完成初步 compare：共 8 项差异；因两端相隔三天且宿主 `--timeout 1` 导致 pnpm 冷启动超时，该轮不升级为严格公开案例。
-- [x] 当前 Codex 已用 `--timeout 2` 生成 `context-run-02\codex.json`：label/cwd/schema 正确，用户名、常见 token/key 和邮箱模式命中为 0，自比较退出 0。
-- [x] 用户已生成 `context-run-02\host.json` 并完成 compare：host cwd 为 System32，不满足同项目条件；2 秒 timeout 仍让宿主 pnpm 超时，因此保留为协议反例。
-- [x] 当前 Codex 已在项目根以 `--timeout 5` 生成 `context-run-03\codex.json`：pnpm/Codex 均 pass，label/cwd/schema 正确，敏感模式命中为 0，自比较退出 0。
-- [x] 用户在项目根的宿主 PowerShell 以相同 `--timeout 5` 生成 `context-run-03\host.json`；两端采集相隔约 9 分钟，cwd/解释器一致，compare 退出 1 并报告 8 项有效差异。
+- [x] 明确真实 Agent 快照必须由对应 Agent 执行器触发，Host 快照由宿主操作者触发；不新增 `capture-pair`、PowerShell 包装或外部 Agent 控制。
+- [x] 2026-08-24 的 Codex 执行上下文生成 `context-run-01\codex.json`：写出和重新加载成功，label/cwd/schema 正确，用户目录明文未出现，临时残留为 0，自比较退出 0。
+- [x] 宿主操作者生成 `context-run-01\host.json` 并完成初步 compare：共 8 项差异；因两端相隔三天且宿主 `--timeout 1` 导致 pnpm 冷启动超时，该轮不升级为严格公开案例。
+- [x] 2026-08-27 的 Codex 执行上下文用 `--timeout 2` 生成 `context-run-02\codex.json`：label/cwd/schema 正确，用户名、常见 token/key 和邮箱模式命中为 0，自比较退出 0。
+- [x] 宿主操作者生成 `context-run-02\host.json` 并完成 compare：Host cwd 为 System32，不满足同项目条件；2 秒 timeout 仍让 Host 侧 pnpm 超时，因此保留为协议反例。
+- [x] 2026-08-27 的 Codex 执行上下文在项目根以 `--timeout 5` 生成 `context-run-03\codex.json`：pnpm/Codex 均 pass，label/cwd/schema 正确，敏感模式命中为 0，自比较退出 0。
+- [x] 宿主操作者在项目根的普通 PowerShell 以相同 `--timeout 5` 生成 `context-run-03\host.json`；两端采集相隔约 9 分钟，cwd/解释器一致，compare 退出 1 并报告 8 项有效差异。
 - [x] 组合原始证据的用户名、常见 GitHub/OpenAI token/key 和邮箱模式命中均为 0；原始 JSON 未提交/上传，只公开人工归约摘要 `docs/host-codex-case-study.md`。
 
 ## 阶段 13：command-doctor 单命令诊断
@@ -179,7 +179,7 @@
 - [x] 无扩展名追加一次只读 PowerShell 裸命令检查；显式 `.ps1` 或无扩展名发现 `.ps1` 时采集只读执行策略；始终采集只读 `windows.path_refresh`，刷新 warning/unknown 不否定已可用显式 launcher。
 - [x] 失败不保存 launcher stdout/stderr；成功只保存脱敏、最多 200 字符的首条非空版本行；PowerShell 裸命令成功证据同样只保留首行并脱敏截断。
 - [x] 测试覆盖候选顺序/回退、空输出/超时/WinError、显式扩展边界、npm bare warning、pnpm 缺失与 refresh 独立性、非 Windows 零 Runner/facts、CLI JSON/Console/0/1/2 和 cp1252 help。
-- [x] 本机真实命令：`npm`、`npm.cmd`、`pnpm` 均退出 0、状态 `usable`、`windows.path_refresh=pass`；npm 为 11.17.0，pnpm 为 11.22.0，pnpm 记录主安装与 fallback 候选。
+- [x] 首次维护环境的真实命令：`npm`、`npm.cmd`、`pnpm` 均退出 0、状态 `usable`、`windows.path_refresh=pass`；npm 为 11.17.0，pnpm 为 11.22.0，pnpm 记录主安装与 fallback 候选。
 - [x] 提交 `a311f96` 已推送，Windows CI run `32703174150` 的 3.12/3.14、cp1252、sdist/wheel 干净环境验收全部通过。
 
 ## 阶段 14：git-doctor 离线本地 Git 诊断
@@ -212,9 +212,9 @@
 状态：文档路线已于 2026-08-27 更新；未修改运行时代码。
 
 - [x] 复审 Agent Doctor、Windows Claude Code Doctor、Argus Agent、APM Doctor、NVIDIA Agent Doctor 和生态型 doctor 工具，确认存在组件级重合但未发现成熟的“Windows host ↔ Coding Agent 独立采样与差分”完全替代品。
-- [x] 结合 Codex/Claude Code 的 PATH 未继承、Access Denied、WindowsApps launcher 和 Shell 差异公开问题，确认需求真实；同时记录项目当前尚无用户采用证据，不能把功能完成度等同于市场验证。
-- [x] 路线收敛为：真实成对案例 → 3–5 名外部用户验证 → 必要时收敛入口/紧凑输出 → 至多一个证据驱动的新切片。
-- [x] 明确排除自动修复、Agent 配置治理、GUI/团队控制面和没有用户证据的通用 Windows 全科诊断。
+- [x] 结合 Codex/Claude Code 的 PATH 未继承、Access Denied、WindowsApps launcher 和 Shell 差异公开问题，确认需求真实；同时记录项目当前尚无外部采用证据，不能把功能完成度等同于市场验证。
+- [x] 路线收敛为：真实成对案例 → 3–5 名外部参与者验证 → 必要时收敛入口/紧凑输出 → 至多一个证据驱动的新切片。
+- [x] 明确排除自动修复、Agent 配置治理、GUI/团队控制面和没有参与者证据的通用 Windows 全科诊断。
 - [x] 阶段 12 首组严格比较与公开归约案例已完成。
 
 ## 阶段 17：首组严格 Host/Codex 案例
@@ -225,7 +225,7 @@
 - [x] `compare` 退出 1 并报告 8 项差异：PATH、Codex/Git/pnpm/Python 候选、npm 使用的 PowerShell、PATH refresh 和 Execution Policy。
 - [x] Git/Python/npm/pnpm 的最终版本在两端一致；Codex 注入的 fallback 和内部 CLI 作为候选差异保留，不被误写成所有工具都不同。
 - [x] 新增 `docs/host-codex-case-study.md`，只公开归约事实、被拒绝轮次和路线影响；原始快照留在 `%TEMP%`。
-- [x] 路线结论：先获取 3–5 名外部用户反馈，再决定紧凑输出/成对证据预验证；当前不增加探针或自动修复。
+- [x] 路线结论：先获取 3–5 名外部参与者反馈，再决定紧凑输出/成对证据预验证；当前不增加探针或自动修复。
 
 ## 阶段 18：外部试运行手册
 
@@ -237,13 +237,23 @@
 - [x] 风险说明覆盖隐私暴露、第三方 launcher、Agent 写入限制、不同 cwd/轮次/timeout 假差异和资源占用。
 - [x] 不要求管理员权限、账号登录、关闭安全策略或自行修复；异常时只回传脱敏错误摘要。
 
+## 阶段 19：公开文档受众与身份审阅
+
+状态：完成；运行时代码未修改。
+
+- [x] README 改为面向公开访问者：先说明问题、适用场景、快速开始、边界和参与试运行入口，不再展示维护者会话中的认证状态、恢复点或内部交接语气。
+- [x] 外部试运行手册明确区分参与者、Coding Agent、宿主操作者和维护者，回传模板只要求匿名归约结果。
+- [x] PROJECT、PROGRESS、设计、研究、案例、构建验收和 AGENTS 统一使用各自受众：公开介绍、参与者操作、维护决策、历史证据或 Agent 规则。
+- [x] GitHub CLI 登录、个人机器安装状态和一次对话中的授权不再作为公开仓库事实；远程操作只描述维护者角色和执行前核对要求。
+- [x] 过期的“尚未完成成对采集”记录已更新为首组 Host ↔ Codex 案例完成，Claude/DSH 外部案例仍待补充。
+
 ## 暂停检查点
 
-- 当前阶段：首组严格案例和外部试运行手册已完成；现有实现保持不变，等待 3–5 名用户反馈，不继续增加推测性功能。
-- 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过。
-- 未完成项：3–5 名外部 Windows Coding Agent 用户尚未完成试运行。
-- 下一步：分享 `docs/external-pilot-guide.md`，记录一次成功率、故障是否可解释和重复缺口。GitHub CLI 已认证，无需再次认证。
-- 后续先完成真实案例和用户验证；只有真实 compare、至少两名用户重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
+- 当前阶段：首组严格案例和外部试运行手册已完成；现有实现保持不变，等待 3–5 名外部参与者反馈，不继续增加推测性功能。
+- 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过；公开文档本地链接、敏感文本和受众关键词检查通过。
+- 未完成项：3–5 名外部 Windows Coding Agent 参与者尚未完成试运行。
+- 下一步：由维护者分享 `docs/external-pilot-guide.md`，记录一次成功率、故障是否可解释和重复缺口。远程操作由具有仓库权限的维护者执行。
+- 后续先完成真实案例和参与者验证；只有真实 compare、至少两名参与者重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
 - 恢复命令：
 
 ```powershell
@@ -274,7 +284,7 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | `python -B -m pytest -q -p no:cacheprovider` | 75 passed；包含 27 个 workspace-probe 专项测试，覆盖对象身份变化、外部 after 残留、报告一致性、输入零写、异常和 CLI 退出码 |
 | 2026-08-24 | `python -m ruff check . --no-cache` | All checks passed |
 | 2026-08-24 | `python -B -m win_agent_preflight workspace-probe --target $env:TEMP --allow-write --json --pretty` | 退出 0；六项 pass；`successful=true`；`residual_paths=[]`；无 `.agent-preflight-probe-*` 残留 |
-| 2026-08-24 | `python -B -m win_agent_preflight workspace-probe --target . --allow-write --json --pretty` | 当前 Codex 沙箱中退出 1；创建目录 WinError 5；1 pass、1 fail、4 unknown；`residual_paths=[]`，无探针残留 |
+| 2026-08-24 | `python -B -m win_agent_preflight workspace-probe --target . --allow-write --json --pretty` | Codex 执行上下文中退出 1；创建目录 WinError 5；1 pass、1 fail、4 unknown；`residual_paths=[]`，无探针残留 |
 | 2026-08-24 | `python -m build --version` | build 1.5.0 |
 | 2026-08-24 | `python -m build --sdist --wheel` | 默认隔离构建成功生成 1 个 sdist 与 1 个 wheel |
 | 2026-08-24 | `.artifacts\\sdist-check`、`.artifacts\\wheel-check` 两个干净环境安装制品并运行 CLI 帮助 | 两个环境均退出 0 |
@@ -308,7 +318,7 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | snapshot 可写目录边界 | 唯一 `%TEMP%` 目录中运行 `snapshot`，随后 `load_snapshot` 读取并显式清理该目录 | 写出退出 0，`load_snapshot` 读取 `temp-check 1 environment_snapshot`；临时文件 0；目录已清理 |
 | 2026-08-24 | command-doctor 定向回归 | `python -B -m pytest tests/test_command_doctor.py tests/test_windows.py tests/test_cli.py tests/test_cli_help.py -ra -p no:cacheprovider` | 82 passed；覆盖严格输入零 Runner、非 Windows 零 facts/Runner、PATHEXT 顺序和候选回退、五态/WinError/timeout/空输出、PowerShell 裸命令和显式扩展检查、direct + bare 恰好两次同 timeout、JSON/Console/退出码/cp1252 help |
 | 2026-08-24 | command-doctor 全量与静态检查 | `python -B -m pytest -ra -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 200 passed；Ruff 和 diff check 通过 |
-| 2026-08-24 | command-doctor 真实本机 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
+| 2026-08-24 | command-doctor 首次维护环境 CLI | `python -B -m win_agent_preflight command-doctor npm/npm.cmd/pnpm --json --pretty --timeout 1` | 三个命令均退出 0；npm `11.17.0`、npm.cmd `11.17.0`、pnpm `11.22.0`；均为 `usable` 且 `windows.path_refresh=pass`，pnpm 报告主安装与 fallback 候选，未写文件 |
 | 2026-08-24 | command-doctor GitHub Windows CI | [run 32703174150](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) | Python 3.12/3.14 的 200 项测试、严格 cp1252 help、workspace probe、Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
 | 2026-08-24 | 真实项目 project-doctor 矩阵 | MyMineCraft、MCP Interop Lab、两份 Triton 源码树 | MyMineCraft 识别 Node + pnpm 并退出 0；MCP Lab 识别 Python 并退出 0；两份未提供 `pyproject.toml`/`requirements.txt` 等受支持 marker 的旧 Triton 源码树均以 `no supported project marker` 退出 1，未凭 `.py` 文件猜测工具链 |
 | 2026-08-24 | 真实项目 workspace-probe 矩阵 | MyMineCraft、Evolutionary Triton Optimizer、MCP Interop Lab | 同一 Codex 上下文中，Triton 项目六步通过；MyMineCraft 与 MCP Lab 均在创建探针目录时返回 PermissionError/WinError 5；三次 `residual_paths=[]`。只读目录属性与 ACL 未解释差异，因此不把失败武断归因于 Windows ACL 或 Agent 沙箱 |
@@ -316,9 +326,10 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | workspace-scope 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 提交前本地验证 261 passed；Ruff 通过；diff check 无内容错误 |
 | 2026-08-24 | workspace-scope 真实项目矩阵 | 分别以 Evolutionary Triton Optimizer、MyMineCraft、MCP Interop Lab 为 `--target`，以 `%TEMP%` 为 `--control` | Triton 与 control 均六项通过，状态 `both_usable`、退出 0；MyMineCraft/MCP Lab 的 target 创建目录均返回 WinError 5，control 六项通过，状态 `target_specific_failure`、退出 1；四个目录 `.agent-preflight-probe-*` 残留均为 0 |
 | 2026-08-24 | workspace-scope GitHub Windows CI | [run 32712146556](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) | 提交 `b981bf1` 的 Python 3.12/3.14 全量 261 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
-| 2026-08-27 | 路线文档复审 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check`、真实 `support-report --json --timeout 1` | 全量 261 项测试通过；Ruff、diff check 和真实 CLI 通过；本轮只更新定位、路线、需求证据与用户操作说明，未修改运行时代码 |
+| 2026-08-27 | 路线文档复审 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check`、真实 `support-report --json --timeout 1` | 全量 261 项测试通过；Ruff、diff check 和真实 CLI 通过；该变更只更新定位、路线、需求证据与参与者操作说明，未修改运行时代码 |
 | 2026-08-27 | 首组严格 host ↔ Codex 案例 | 同项目 cwd、同 Python、同 `--timeout 5` 分别运行 snapshot，再执行 compare 和敏感模式检查 | 两端相隔约 9 分钟；compare 退出 1、报告 8 项有效差异；用户名、常见 GitHub/OpenAI token/key、邮箱模式命中均为 0；全量 261 项测试、Ruff 和 diff check 通过 |
 | 2026-08-27 | 外部试运行手册 | 审阅准备/双端采集/compare/回传/风险/停止/清理流程；运行全量测试、Ruff、diff check 和链接存在性检查 | 261 项测试、Ruff、diff check 通过；手册和所有入口链接存在；运行时代码未修改 |
+| 2026-08-27 | 公开文档受众审阅 | 全量测试、Ruff、diff check、真实 `support-report`、本地 Markdown 链接、敏感文本与对话式身份关键词检查 | 261 项测试、Ruff、diff check 和真实 CLI 通过；本地链接、敏感文本与受众关键词检查均通过；运行时代码未修改 |
 
 ## 下一里程碑验收
 
@@ -326,5 +337,5 @@ Remove-Item Env:PYTHONIOENCODING
 - [x] 已推送内容的 package job 构建并安装 sdist/wheel，非 PR 运行可下载 7 天制品；
 - [x] project-doctor 的 Windows CI 已验证该命令的测试、help 和包验收；
 - [x] snapshot 写入快速失败修复已提交/推送，Windows CI 和本地拒绝写入目录退出边界均通过；
-- 用户在宿主与实际 Agent 上分别生成脱敏快照并完成 compare；
+- [x] 宿主操作者与实际 Agent 执行器分别生成脱敏快照并完成 compare；
 - 不增加自动发布、缓存、签名或额外平台基础设施。

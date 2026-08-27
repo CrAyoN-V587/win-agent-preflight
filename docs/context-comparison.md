@@ -4,13 +4,13 @@
 
 需要把流程直接发给外部试运行者时，优先使用 [`external-pilot-guide.md`](external-pilot-guide.md)；本文件保留协议细节和项目实测记录。
 
-这是当前项目路线的最高优先级验收。完成首组真实证据前，不继续增加新探针。
+首组严格证据已完成；本协议继续作为外部试运行的采集基线。在形成重复参与者反馈前，不继续增加新探针。
 
 ## 为什么必须双端手动触发
 
-一个进程只能采集自己的环境。若在普通 PowerShell 中连续生成 `host.json` 和 `codex.json`，得到的仍是两份宿主快照，不能证明 Codex 的 PATH、Shell 或权限。无法由当前 Agent 或单进程脚本替代的边界，是进入对应 Agent 会话，让该 Agent 自己的命令执行器运行一次快照命令；host 快照同样需要用户在普通 PowerShell 中触发。
+一个进程只能采集自己的环境。若在普通 PowerShell 中连续生成 `host.json` 和 `codex.json`，得到的仍是两份宿主快照，不能证明 Codex 的 PATH、Shell 或权限。单一进程不能替代另一个上下文：Agent 快照由对应 Agent 执行器触发，Host 快照由宿主操作者在 Agent 外部的普通 PowerShell 中触发。
 
-首轮建议只比较 host 与当前正在使用的 Agent。Claude 或 DSH 尚未安装、没有命令执行能力或看不到本工具时，记录“未采集”，不要用宿主快照代替。
+首轮建议只比较 Host 与本次参与测试的一个 Agent。Claude 或 DSH 尚未安装、没有命令执行能力或看不到本工具时，记录“未采集”，不要用宿主快照代替。
 
 ## 0. 约定目标和证据目录
 
@@ -22,7 +22,7 @@ $EvidenceDir = Join-Path $env:TEMP "win-agent-preflight\context-run-01"
 Set-Location $TargetProject
 ```
 
-当前仓库自测时，将 `$TargetProject` 设为本仓库根目录，并在两端都使用 `python -B -m win_agent_preflight`。诊断其他项目时，在两端都使用已经确认指向预期安装的 `agent-preflight`；不要让 host 与 Agent 使用不同代码版本，也不要为了完成采集临时修改 PATH。
+以本仓库作为测试目标时，将 `$TargetProject` 设为仓库根目录，并在两端都使用 `python -B -m win_agent_preflight`。诊断其他项目时，在两端都使用已经确认指向预期安装的 `agent-preflight`；不要让 Host 与 Agent 使用不同代码版本，也不要为了完成采集临时修改 PATH。
 
 推荐每轮使用新的目录名，默认不加 `--force`，避免覆盖旧证据。
 
@@ -58,7 +58,7 @@ python -B -m win_agent_preflight snapshot `
 
 Claude 与 DSH 的流程相同，只分别改为 `--label claude`/`claude.json` 和 `--label dsh`/`dsh.json`。每条命令必须由对应 Agent 的执行器启动。
 
-当前 Codex 上下文已验证项目内 `.artifacts` 可能拒绝写入，而 `%TEMP%` 可写，因此协议默认使用 `%TEMP%`。若不同上下文的 `%TEMP%` 指向不同位置，让 Agent 报告其实际输出路径，再由用户在宿主侧明确复制该文件；首版不自动搬运。
+2026-08-24 的 Codex 实测表明项目内 `.artifacts` 可能拒绝写入，而 `%TEMP%` 可写，因此协议默认使用 `%TEMP%`。若不同上下文的 `%TEMP%` 指向不同位置，Agent 只报告其实际输出路径，再由宿主操作者明确复制该文件；首版不自动搬运。
 
 ## 3. 回到宿主逐对比较
 
@@ -89,7 +89,7 @@ python -B -m win_agent_preflight compare `
 - JSON 中没有用户名明文、密钥或不应公开的业务路径；
 - `captured_at` 表明确实来自两次独立采集。
 
-工具不会自动上传、压缩、哈希或删除证据。完成检查后，由用户显式删除本轮 `$EvidenceDir`；不要使用宽泛目录作为清理目标。
+工具不会自动上传、压缩、哈希或删除证据。完成检查后，由证据目录的创建者显式删除该次 `$EvidenceDir`；不要使用宽泛目录作为清理目标。
 
 ## 当前实测状态
 
@@ -98,8 +98,8 @@ python -B -m win_agent_preflight compare `
 - 该文件与自身比较返回等价 `0`。
 - 2026-08-27 已完成 `context-run-01` 初步比较并发现 8 项差异，但两份快照相隔三天；宿主侧 1 秒 timeout 还造成 pnpm 冷启动超时，因此该轮只用于发现流程问题，不作为严格公开案例。
 - `context-run-02` 的两端采集时间接近，但 host cwd 为 `%SYSTEMROOT%\System32`，且 2 秒 timeout 仍让宿主 pnpm 超时；该轮只用于验证 cwd 和 timeout 必须进入采集协议。
-- 当前 Codex 已在项目根以 5 秒 timeout 生成并验证 `context-run-03\codex.json`；pnpm/Codex 均 pass，用户名、常见 token/key 和邮箱模式命中均为 0，自比较等价。
-- 用户随后在同一项目根以相同 5 秒 timeout 生成 `context-run-03\host.json`。两端使用同一 Python 解释器，采集相隔约 9 分钟；严格 compare 退出 1 并报告 8 项有效差异。
+- 2026-08-27 的 Codex 执行上下文在项目根以 5 秒 timeout 生成并验证 `context-run-03\codex.json`；pnpm/Codex 均 pass，用户名、常见 token/key 和邮箱模式命中均为 0，自比较等价。
+- 宿主操作者随后在同一项目根以相同 5 秒 timeout 生成 `context-run-03\host.json`。两端使用同一 Python 解释器，采集相隔约 9 分钟；严格 compare 退出 1 并报告 8 项有效差异。
 - 首组公开归约结果见 [`host-codex-case-study.md`](host-codex-case-study.md)。原始快照没有提交或上传。
 
 ## 外部试运行者需要完成

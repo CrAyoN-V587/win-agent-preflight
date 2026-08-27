@@ -4,7 +4,7 @@
 
 ## 环境
 
-- 本机当前已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
+- 首次维护环境已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
 - `git-doctor` 提交 `67697c7` 已通过 main Windows CI run `32708225452` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job；GitHub 认证仍不在离线验收范围内。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
@@ -69,7 +69,7 @@ python -B -m win_agent_preflight project-doctor --target . --json --pretty --tim
 
 ## command-doctor 本地边界
 
-`command-doctor` 已在本机完成实现和回归，并随提交 `a311f96` 通过 Windows CI run `32703174150`。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
+`command-doctor` 已在首次维护环境完成实现和回归，并随提交 `a311f96` 通过 Windows CI run `32703174150`。它只接受安全的单个 ASCII basename，只在 Windows PATH 中探测 launcher，并通过有界 Runner 固定执行 `--version`：
 
 ```powershell
 python -B -m win_agent_preflight command-doctor npm --json --pretty --timeout 1
@@ -77,7 +77,7 @@ python -B -m win_agent_preflight command-doctor npm.cmd --json --pretty --timeou
 python -B -m win_agent_preflight command-doctor pnpm --json --pretty --timeout 1
 ```
 
-本机三条命令均退出 0、状态为 `usable`、`windows.path_refresh=pass`；npm/npm.cmd 为 `11.17.0`，pnpm 为 `11.22.0`，pnpm 报告主安装和 fallback 候选。无扩展名会按 PATHEXT 探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，必要时进行一次 PowerShell 裸命令或执行策略只读检查；显式 `.cmd`/`.exe` 不执行裸命令检查。该命令不登录、不联网、不写文件，能力失败退出 1，输入或非 Windows 错误退出 2。
+首次维护环境中的三条命令均退出 0、状态为 `usable`、`windows.path_refresh=pass`；npm/npm.cmd 为 `11.17.0`，pnpm 为 `11.22.0`，pnpm 报告主安装和 fallback 候选。无扩展名会按 PATHEXT 探测 `.exe`/`.cmd`/`.bat` 并追加 `.ps1`，必要时进行一次 PowerShell 裸命令或执行策略只读检查；显式 `.cmd`/`.exe` 不执行裸命令检查。该命令不登录、不联网、不写文件，能力失败退出 1，输入或非 Windows 错误退出 2。
 
 ## git-doctor 本地边界
 
@@ -113,4 +113,4 @@ python -B -m win_agent_preflight workspace-scope --target . --control $env:TEMP 
 
 CI 在 Python 3.12 和 3.14 上运行测试；Ruff 只在 3.12 上运行，两个版本都会运行 CLI 帮助和 `%RUNNER_TEMP%` 工作区探针。首次 run [`32691934171`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32691934171) 暴露根 help 的 cp1252 `UnicodeEncodeError`；包含 `command-doctor` 的 main run [`32703174150`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32703174150) 已完成两个矩阵 job、sdist/wheel 构建、两个干净环境安装和制品上传。
 
-GitHub CLI 已认证，远程包验收已有成功证据。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。
+远程包验收已有成功证据。GitHub CLI 认证属于执行远程操作的维护者本地状态，不作为项目验收前提。CI 不发布 PyPI，不创建 Release，不生成签名、SBOM 或跨平台构建。

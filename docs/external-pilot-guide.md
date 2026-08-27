@@ -1,6 +1,6 @@
 # Windows Agent Preflight 外部试运行手册
 
-这份手册可以直接发给试运行者。目标不是检查对方的代码或账号，而是比较同一台 Windows 机器上普通 PowerShell 与 Coding Agent 命令执行器看到的环境差异。
+本手册面向外部试运行参与者。目标不是检查参与者的代码或账号，而是比较同一台 Windows 机器上普通 PowerShell 与 Coding Agent 命令执行器看到的环境差异。
 
 整个流程通常需要 10–20 分钟。默认只回传归约结果，不发送原始快照。
 
@@ -20,7 +20,7 @@
 
 工具会：
 
-- 在 `%TEMP%\win-agent-preflight\<本轮名称>` 写入两份 JSON 快照；
+- 在 `%TEMP%\win-agent-preflight\<试运行编号>` 写入两份 JSON 快照；
 - 读取当前进程的 cwd、Python 路径、PATH、PATHEXT、PowerShell/注册表 PATH 事实；
 - 在 PATH 中查找固定工具，并对候选执行有 5 秒上限的 `--version`；
 - 将当前用户目录替换为 `%USERPROFILE%`。
@@ -47,11 +47,11 @@ python -m venv .venv
 
 也可以从 GitHub 下载 ZIP、解压后进入目录，再创建 `.venv` 并执行后两条命令。准备阶段的 pip 可能访问 Python 包索引以安装缺失依赖；后续 scan/snapshot/compare 诊断本身不联网。`.venv` 只服务本次仓库，避免改变全局 Python 环境。
 
-如果安装或帮助命令失败，请停止并回传错误，不要改执行策略、关闭安全软件或使用管理员权限强行继续。
+如果安装或帮助命令失败，参与者应停止并回传错误，不要改执行策略、关闭安全软件或使用管理员权限强行继续。
 
-## 4. 固定本轮参数
+## 4. 固定试运行参数
 
-先为本轮选择一个不含姓名、邮箱、学号或公司名的编号，例如 `pilot-01`。以下两个值必须在普通 PowerShell 和 Agent 中完全一致：
+参与者先选择一个不含姓名、邮箱、学号或公司名的试运行编号，例如 `pilot-01`。以下两个值必须在普通 PowerShell 和 Agent 中完全一致：
 
 ```powershell
 $TargetProject = "C:\path\to\win-agent-preflight"
@@ -63,11 +63,11 @@ $EvidenceDir = Join-Path $env:TEMP "win-agent-preflight\$RunId"
 
 ## 5. 在 Coding Agent 中采集
 
-把下面这段话发给正在试用的 Agent，并替换项目路径和 Agent 名称：
+参与者将下面的任务说明交给正在试用的 Agent，并替换项目路径和 Agent 名称：
 
 > 请只在指定项目目录执行下面的 PowerShell 命令，生成一份本地环境快照。不要修改项目、系统配置或账号，不要上传快照。命令退出后只告诉我退出码和输出文件是否存在。
 
-让 Agent 通过自己的命令执行器运行：
+Coding Agent 通过自己的命令执行器运行：
 
 ```powershell
 $TargetProject = "C:\path\to\win-agent-preflight"
@@ -133,7 +133,7 @@ Write-Host "Compare exit code: $LASTEXITCODE"
 
 完整 compare 输出可能包含安装目录、软件版本和非用户目录路径。不要直接粘贴到公开 Issue、群聊或论坛。
 
-## 8. 请回传这些信息
+## 8. 参与者需要回传的信息
 
 默认只需要复制下面模板并填写，不要附加原始 JSON 或完整 PATH：
 
@@ -149,7 +149,7 @@ Compare 退出码：
 差异数量：只填第一行显示的数字
 是否第一次就完成：是 / 否
 如果没有一次完成，卡在哪一步：
-结果是否帮助你理解环境差异：是 / 部分 / 否
+结果是否有助于理解环境差异：是 / 部分 / 否
 最难理解的提示：
 是否同意公开匿名归约摘要：是 / 否
 ```
@@ -163,7 +163,7 @@ Compare 退出码：
 
 ## 9. 不要回传这些信息
 
-- `host.json`、`codex.json` 等原始快照，除非双方另行确认私下诊断范围；
+- `host.json`、`codex.json` 等原始快照，除非参与者与维护者另行确认私下诊断范围；
 - 完整 compare 输出；
 - 完整 PATH、用户名、邮箱、机器名、公司目录、仓库绝对路径；
 - GitHub Token、API Key、密码、SSH Key、Cookie 或任何凭据；
@@ -191,14 +191,14 @@ Compare 退出码：
 - 目标目录或证据目录与预期不一致；
 - 已有同名快照，无法确认来源。
 
-停止后只回传步骤编号和脱敏错误摘要，不需要为了完成试运行自行修复环境。
+停止后，参与者只需回传步骤编号和脱敏错误摘要，不需要为了完成试运行自行修复环境。
 
 ## 11. 证据保留与清理
 
-在确认反馈已记录前，可以暂时保留本轮证据。结束后建议通过文件资源管理器只删除：
+在确认反馈已记录前，可以暂时保留该次证据。结束后建议通过文件资源管理器只删除：
 
 ```text
-%TEMP%\win-agent-preflight\<本轮 RunId>
+%TEMP%\win-agent-preflight\<该次 RunId>
 ```
 
 不要删除整个 `%TEMP%`、整个用户目录或不确定来源的其他轮次。项目不会自动清理、上传、压缩或计算哈希。

@@ -6,9 +6,9 @@
 
 ## 产品边界与优先级
 
-当前最强差异化是 host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。下一阶段优先级固定为：真实成对案例、首选入口/紧凑输出、3–5 名外部用户验证，最后才是由重复证据驱动的新探针。
+当前最强差异化是 Host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。下一阶段优先级固定为：真实成对案例、首选入口/紧凑输出、3–5 名外部参与者验证，最后才是由重复证据驱动的新探针。
 
-不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有用户证据时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
+不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有参与者证据时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
 
 ## 模块边界
 
@@ -89,7 +89,7 @@ cli.py
 
 ## 未来扩展
 
-候选扩展只有三类：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照。它们不是既定待办；必须由真实成对案例或至少两名外部用户的同类失败触发。自动修复不在当前路线内。
+候选扩展只有三类：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照。它们不是既定待办；必须由真实成对案例或至少两名外部参与者的同类失败触发。自动修复不在当前路线内。
 
 ## 第六里程碑：agent-doctor
 
@@ -153,13 +153,13 @@ Codex 工作区对项目目录的写入曾以 WinError 5 被拒绝；旧的 `Nam
 
 ## 第十二里程碑：跨执行上下文采集协议
 
-host 与 Agent 的差异不能由单个进程自动采集：同一进程连续写两份快照只会得到同一上下文。项目不新增 `capture-pair` 子命令或 PowerShell 包装脚本；用户必须在普通宿主终端与每个真实 Agent 执行器中分别触发既有 `snapshot`，再由宿主逐对运行 `compare`。
+Host 与 Agent 的差异不能由单个进程自动采集：同一进程连续写两份快照只会得到同一上下文。项目不新增 `capture-pair` 子命令或 PowerShell 包装脚本；宿主操作者与对应 Agent 执行器必须分别触发既有 `snapshot`，再由宿主操作者逐对运行 `compare`。
 
-协议默认把证据写到同一轮 `%TEMP%\win-agent-preflight\context-run-01`，因为当前 Codex 对项目 `.artifacts` 的写入可能被拒绝。每轮推荐新目录且默认不覆盖；工具不启动 Agent、不登录、不注入 prompt、不修改 PATH、权限或执行策略，也不自动上传、复制、哈希或删除证据。完整命令和人工公开检查见 `docs/context-comparison.md`。
+协议默认把证据写到同一轮 `%TEMP%\win-agent-preflight\context-run-01`，因为 2026-08-24 的 Codex 实测发现项目 `.artifacts` 可能拒绝写入。每轮推荐新目录且默认不覆盖；工具不启动 Agent、不登录、不注入 prompt、不修改 PATH、权限或执行策略，也不自动上传、复制、哈希或删除证据。完整命令和人工公开检查见 `docs/context-comparison.md`。
 
 ## 第十三里程碑：command-doctor
 
-`command-doctor NAME` 只诊断 Windows PATH 中用户明确指定的一个 launcher。输入长度为 1–128，首字符是 ASCII 字母/数字，其余只能是 ASCII 字母、数字、点、下划线或横线；显式扩展仅允许 `.exe`、`.cmd`、`.bat`、`.ps1`，规范化为小写。非法输入和非 Windows 平台在 discovery、registry 或 Runner 之前退出 2，不产生诊断调用。
+`command-doctor NAME` 只诊断操作者明确指定的一个 Windows PATH launcher。输入长度为 1–128，首字符是 ASCII 字母/数字，其余只能是 ASCII 字母、数字、点、下划线或横线；显式扩展仅允许 `.exe`、`.cmd`、`.bat`、`.ps1`，规范化为小写。非法输入和非 Windows 平台在 discovery、registry 或 Runner 之前退出 2，不产生诊断调用。
 
 无扩展名时，只按当前 `PATHEXT` 中 `.exe`/`.cmd`/`.bat` 的相对顺序生成候选，再追加 `.ps1`；显式扩展只探测该 launcher。候选使用共享的 `launcher_probe`，每个最多一次固定 `--version`，首个退出 0 且有非空 stdout/stderr 文本的候选停止并报告 `usable`。成功版本仅保留首条非空行，脱敏并截断至 200 字符；失败只保留状态、结构化 Runner 错误和 attempts，不保留输出原文。
 
