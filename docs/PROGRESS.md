@@ -6,7 +6,8 @@
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
 - 最近验证：`workspace-scope` 24 项加 CLI help 1 项（定向命令共 25 passed）、全量回归 261 项、Ruff、diff check 和真实三项目矩阵已通过；Windows CI `32712146556` 的 Python 3.12/3.14、严格帮助检查、workspace probe、sdist/wheel 双安装和制品上传也已通过。
 - 未完成项：用户在真实宿主终端和各 Agent 实际终端分别生成快照，并用 `compare` 形成第一组真实差异证据。
-- 下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 采集 host 快照；恢复任务后由 Agent 运行 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
+- 2026-08-27 路线复审完成：定位收敛为 Windows host/Agent 执行上下文差异诊断；不再以增加 doctor 数量为进度指标。
+- 下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 采集 host 快照；恢复任务后由 Agent 运行 host ↔ Codex `compare`、形成脱敏案例并收敛首选入口。GitHub CLI 已认证，无需再次认证。
 
 本机建议安装环境（基于当前验证）：
 
@@ -201,13 +202,23 @@
 - [x] 真实项目矩阵：Triton target + `%TEMP%` control 为 `both_usable`；MyMineCraft/MCP Lab target + `%TEMP%` control 为 `target_specific_failure`；四个目录探针残留均为 0。
 - [x] Windows CI `32712146556` 的 Python 3.12/3.14、261 项测试、严格帮助检查、workspace probe、Ruff、sdist/wheel 双安装和制品上传全部通过。
 
+## 阶段 16：项目路线与重合度复审
+
+状态：文档路线已于 2026-08-27 更新；未修改运行时代码。
+
+- [x] 复审 Agent Doctor、Windows Claude Code Doctor、Argus Agent、APM Doctor、NVIDIA Agent Doctor 和生态型 doctor 工具，确认存在组件级重合但未发现成熟的“Windows host ↔ Coding Agent 独立采样与差分”完全替代品。
+- [x] 结合 Codex/Claude Code 的 PATH 未继承、Access Denied、WindowsApps launcher 和 Shell 差异公开问题，确认需求真实；同时记录项目当前尚无用户采用证据，不能把功能完成度等同于市场验证。
+- [x] 路线收敛为：真实成对案例 → 首选入口/紧凑输出 → 3–5 名外部用户验证 → 至多一个证据驱动的新切片。
+- [x] 明确排除自动修复、Agent 配置治理、GUI/团队控制面和没有用户证据的通用 Windows 全科诊断。
+- [ ] 等待用户采集 host 快照，完成阶段 12 的首组真实比较。
+
 ## 暂停检查点
 
-- 当前阶段：`workspace-scope` 已完成并通过远程 CI；本轮停止，不继续增加推测性功能。
+- 当前阶段：路线与重合度复审已完成；现有实现保持不变，等待 host 快照，不继续增加推测性功能。
 - 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过。
 - 未完成项：用户在宿主与 Agent 两端手动生成成对快照并完成 compare。
 - 下一步：用户在普通 PowerShell 采集 host 快照；恢复任务后由 Agent 执行首次 host ↔ Codex `compare`。GitHub CLI 已认证，无需再次认证。
-- 后续只在真实 compare、新的稳定 scope 失败类型或实际项目缺口出现后设计功能；当前不建设 ACL、代理、网络、长路径或更多生态识别。
+- 后续先完成真实案例和用户验证；只有真实 compare、至少两名用户重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
 - 恢复命令：
 
 ```powershell
@@ -280,6 +291,7 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-24 | workspace-scope 全量回归 | `python -B -m pytest -p no:cacheprovider -ra`、`python -m ruff check . --no-cache`、`git diff --check` | 提交前本地验证 261 passed；Ruff 通过；diff check 无内容错误 |
 | 2026-08-24 | workspace-scope 真实项目矩阵 | 分别以 Evolutionary Triton Optimizer、MyMineCraft、MCP Interop Lab 为 `--target`，以 `%TEMP%` 为 `--control` | Triton 与 control 均六项通过，状态 `both_usable`、退出 0；MyMineCraft/MCP Lab 的 target 创建目录均返回 WinError 5，control 六项通过，状态 `target_specific_failure`、退出 1；四个目录 `.agent-preflight-probe-*` 残留均为 0 |
 | 2026-08-24 | workspace-scope GitHub Windows CI | [run 32712146556](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) | 提交 `b981bf1` 的 Python 3.12/3.14 全量 261 项测试、严格 cp1252 help、workspace probe、3.12 Ruff、sdist/wheel 构建、两个干净环境安装和制品上传全部通过 |
+| 2026-08-27 | 路线文档复审 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check`、真实 `support-report --json --timeout 1` | 全量 261 项测试通过；Ruff、diff check 和真实 CLI 通过；本轮只更新定位、路线、需求证据与用户操作说明，未修改运行时代码 |
 
 ## 下一里程碑验收
 

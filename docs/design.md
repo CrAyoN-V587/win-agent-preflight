@@ -2,7 +2,13 @@
 
 ## 目标
 
-第三里程碑在首阶段稳定诊断核心和第二里程碑 `snapshot`/`compare` 上增加只读注册表 PATH 事实：快照仍保存有限宿主事实和同次 `scan`，比较只使用规范化后的稳定字段。真实 Agent 宿主终端仍需用户在对应环境中分别生成快照；本阶段不自动进入沙箱。
+项目的主目标是 Windows Coding Agent 执行上下文差异诊断：由宿主终端和真实 Agent 执行器分别采集有限事实，再比较 PATH、Shell、launcher、命令状态和工作区能力。既有 doctor 是解释差异的窄工具，不是把项目扩展成通用 Agent 配置修复器。快照仍保存有限宿主事实和同次 `scan`，比较只使用规范化后的稳定字段；真实双端采集必须由对应上下文分别触发，本项目不伪装或自动进入沙箱。
+
+## 产品边界与优先级
+
+当前最强差异化是 host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。下一阶段优先级固定为：真实成对案例、首选入口/紧凑输出、3–5 名外部用户验证，最后才是由重复证据驱动的新探针。
+
+不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有用户证据时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
 
 ## 模块边界
 
@@ -82,6 +88,8 @@ cli.py
 报告渲染前统一将当前用户目录（大小写不敏感）替换为 `%USERPROFILE%`，同时替换 `USERPROFILE` 变量值和常见临时目录中的用户名段。只输出变量名和脱敏状态，不输出 token、密码、API key 或完整环境变量值。
 
 ## 未来扩展
+
+候选扩展只有三类：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照。它们不是既定待办；必须由真实成对案例或至少两名外部用户的同类失败触发。自动修复不在当前路线内。
 
 ## 第六里程碑：agent-doctor
 

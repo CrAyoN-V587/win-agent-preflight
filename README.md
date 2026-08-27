@@ -1,12 +1,12 @@
 # Windows Agent Preflight
 
-Windows-first preflight and differential diagnostics for AI coding agents.
+Windows execution-context differential preflight for AI coding agents.
 
-`Windows Agent Preflight` 面向使用 Codex、Claude Code、DeepSeek Harness 等工具的开发者，先从确定性的本地事实采集开始，帮助区分：命令未安装、PATH 未刷新、PowerShell 脚本被阻止、命令启动失败，还是 Agent 内部环境与宿主不同。
+`Windows Agent Preflight` 面向使用 Codex、Claude Code、DeepSeek Harness 等工具的 Windows 开发者，通过宿主终端与真实 Agent 执行器的独立采样和差分，帮助区分：命令未安装、PATH 未刷新、PowerShell 脚本被阻止、launcher 启动失败，还是 Agent 沙箱与宿主的能力不同。它不是通用 Agent 配置修复器，也不会自动修改 PATH、ACL、执行策略或 Agent 配置。
 
 ## 当前状态
 
-公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`workspace-scope` 提交 `b981bf1` 已推送，main CI run [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已全部通过。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`workspace-scope`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
+公开仓库：[CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight)。`workspace-scope` 提交 `b981bf1` 已推送，main CI run [`32712146556`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/32712146556) 已全部通过。2026-08-27 路线复审后，项目暂停增加新探针，优先完成真实 host ↔ Agent 案例、收敛首选入口并取得外部用户反馈。项目现提供 `scan`、`snapshot`、`compare`、`workspace-probe`、`workspace-scope`、`agent-doctor`、`command-doctor`、`git-doctor`、`support-report` 和 `project-doctor` 命令：
 
 - 发现并列出 Windows PATH 中的候选命令路径；
 - 通过统一的超时 Runner 做真实启动和版本采集；
@@ -61,6 +61,19 @@ agent-preflight project-doctor --target . --json --pretty
 真实环境差异必须由宿主终端和对应 Agent 的实际命令执行器分别运行一次 `snapshot`，再回到宿主执行 `compare`。单个进程不能代替另一个执行上下文采集，也不要用宿主快照冒充 Agent 快照。
 
 完整的 `%TEMP%` 证据目录、PowerShell 命令、退出码、公开检查和清理边界见 [`docs/context-comparison.md`](docs/context-comparison.md)。
+
+当前推荐路径是：先完成 host/Agent 成对 `snapshot` 和 `compare`；再使用 `support-report` 查看整体证据，或按差异选择 `command-doctor`、`workspace-scope` 等窄命令。不要为了“全面检查”无差别运行所有子命令。
+
+## 路线边界
+
+下一阶段按以下顺序推进：
+
+1. 完成并人工检查一组真实 host ↔ Codex 脱敏案例；
+2. 用该案例收敛一条新用户首选路径，优先评估紧凑的 Agent 输出或单一 `preflight` 入口；
+3. 邀请 3–5 名 Windows Coding Agent 用户试运行；
+4. 只在重复证据支持时，从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。
+
+暂不建设自动修复、Agent 配置同步、MCP/Memory/Skill 治理、GUI/团队控制面、广泛安全审计或通用 Windows 全科诊断。竞品和需求证据见 [`docs/research.md`](docs/research.md)。
 
 构建源码包和 wheel 的本地验收见 [`docs/release-check.md`](docs/release-check.md)：
 

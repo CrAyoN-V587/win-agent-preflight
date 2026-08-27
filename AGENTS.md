@@ -4,9 +4,9 @@
 
 ## 项目概述
 
-- 目标：诊断 Windows 宿主与 Coding Agent 使用的命令、Shell 和项目工具链事实。
+- 目标：作为 Windows Coding Agent 的执行上下文差异诊断工具，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 - 核心入口：`src/win_agent_preflight/cli.py`，CLI 名称 `agent-preflight`。
-- 当前阶段：既有切片、`command-doctor`、`git-doctor` 和 `workspace-scope` 均有本地及远程 Windows CI/包验收证据；当前暂停等待用户采集 host 快照。
+- 当前阶段：既有切片、`command-doctor`、`git-doctor` 和 `workspace-scope` 均有本地及远程 Windows CI/包验收证据；路线已收敛到真实 host/Agent 成对证据、单一推荐入口和外部用户验证，当前暂停等待用户采集 host 快照。
 
 ## 环境和命令
 

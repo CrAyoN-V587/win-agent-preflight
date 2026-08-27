@@ -1,16 +1,16 @@
 # Windows Agent Preflight
 
-状态：暂停（`workspace-scope` 提交 `b981bf1` 已推送并通过 main CI `32712146556`；等待 host 快照）
+状态：暂停（现有实现已通过 main CI；2026-08-27 路线复审完成，等待 host 快照）
 类型：P3 Agent  
 开始日期：2026-08-24  
-最近更新：2026-08-24  
+最近更新：2026-08-27
 时间箱：首个可运行切片 1 周；快照/比较里程碑 1 周；后续总计 3–5 周
 
 ## 30 秒上下文
 
-一句话目标：通过 Windows 宿主与 Coding Agent 运行环境的事实采集和差分探针，定位 PATH、Shell、命令启动和项目工具链问题。
+一句话目标：提供面向 Windows Coding Agent 的执行上下文差异诊断，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 
-当前阶段：`workspace-scope` 已完成设计、实现、独立复审、真实项目矩阵、本地回归、提交推送和远程 CI；本轮按用户要求停止扩展，等待宿主端快照。
+当前阶段：`workspace-scope` 及此前切片均已完成验证。竞品和公开问题复审表明需求成立，但下一阶段应从“继续增加 doctor”转为“完成真实成对证据、收敛使用入口、取得外部反馈”。当前不扩展代码，等待宿主端快照。
 
 下一步：用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`；恢复任务后由 Agent 读取现有 Codex 快照并运行 host ↔ Codex `compare`。
 
@@ -22,7 +22,9 @@
 
 - 要解决的问题：Windows 上“命令已安装但 Agent 无法使用”的分层诊断问题。
 - 目标用户：使用 Codex、Claude Code、DeepSeek Harness 等工具的 Windows 开发者。
-- 为什么值得做：把安装检查、实际启动、PowerShell 策略和脱敏证据统一成可复验报告，减少把 PATH、Shell 或沙箱问题误判成项目代码问题。
+- 核心差异：由宿主终端和真实 Agent 执行器分别采样，再比较进程继承的 PATH、launcher 解析和目录能力；不把同一进程生成的两份报告伪装成跨上下文证据。
+- 为什么值得做：公开问题中反复出现“宿主可用、Agent 不可用”、WindowsApps/launcher `Access Denied`、PowerShell/Git Bash 不一致和用户 PATH 已更新但 Agent 进程未继承等故障；项目把这些现象归约为可复验、可分享的脱敏报告，减少误判为项目代码问题。
+- 产品定位：不是通用配置修复器、Agent 管理平台或 Windows 全科排障工具，而是 Windows Coding Agent execution-context differential preflight。
 
 ## 学习与作品集信号
 
@@ -59,6 +61,8 @@
 - 密钥采集、哈希、发布级安全审计；
 - GUI、数据库和 LLM 调用。
 - 递归删除、历史探针清理、目标目录遍历、ACL/提权审计或自动修复。
+- Agent 配置同步、MCP/Memory/Skill 治理、网关修复、团队控制面和主动调用 Agent 自我修复。
+- 在没有重复用户证据前增加端口、文件锁、Defender、GPU、Docker、WSL、代理或通用网络诊断。
 - PyPI/Release 自动发布、签名、SBOM、Actions 缓存和跨平台 CI/制品。
 - `agent-doctor` 不执行 login、doctor、npx、网页或网络调用，不改变既有 scan/snapshot/workspace schema。
 - `support-report` 不执行 workspace-probe、login、doctor、npx、web、网络或写文件，不提供自动行动建议；仅组合已有本地报告。
@@ -92,6 +96,9 @@
 - [x] `command-doctor` 独立 v1、严格输入、候选回退、固定 `--version`、裸 PowerShell/执行策略/Path refresh 边界和 cp1252/退出码测试已通过本地及远程验证。
 - [x] `git-doctor` 独立 v1：固定只读命令、状态归约、脱敏、CLI/退出码和常见 remote 边界已通过本地及远程验证。
 - [x] `workspace-scope` 独立 v1：双目录预验证、target/control 单次顺序调用、usable/failed/unknown 归约、完整/partial `inconclusive`、CLI/Console/JSON 和 cp1252 help 已完成本地及远程验证。
+- [ ] 完成一组同机、同项目、同工具版本的真实 host ↔ Codex 快照和差异报告，并公开一份人工检查后的脱敏案例。
+- [ ] 用真实案例验证一条首选使用路径，再决定是否实现紧凑的 Agent 输出或单一 `preflight` 入口。
+- [ ] 邀请 3–5 名 Windows Coding Agent 用户试运行，以重复问题而不是推测决定下一项探针。
 
 ## 计划
 
@@ -112,6 +119,10 @@
 - [x] 15. 增加独立 `command-doctor` v1：单命令 PATH launcher 诊断和只读 PowerShell 辅助检查；设计、实现、复审与远程验证完成。
 - [x] 16. 增加独立 `git-doctor` v1：离线判断本地 Git readiness；不验证远程认证、不联网、不写配置；设计、实现、复审与远程验证完成。
 - [x] 17. 增加独立 `workspace-scope` v1：预验证两个显式目录后按 target/control 各调用一次既有 probe；设计、实现、复审、真实矩阵与远程验证完成。
+- [x] 18. 复审同类项目和公开需求，将主路线收敛为 Windows host/Agent 执行上下文差异诊断；保留离线、只读、不自动修复边界。
+- [ ] 19. 完成真实 host ↔ Codex 成对采集，形成脱敏案例、差异解释和可复验命令。
+- [ ] 20. 根据真实案例收敛首选使用入口；优先评估紧凑的 Agent 输出，不先增加新探针。
+- [ ] 21. 获取 3–5 名外部 Windows 用户反馈；只有重复出现的缺口才进入 Shell、WindowsApps launcher chain 或可选网络对照设计。
 
 ## 技术和环境
 
@@ -162,12 +173,14 @@
 下一步：
 
 - 用户按 `docs/context-comparison.md` 在普通 PowerShell 生成 `host.json`；恢复任务后由 Agent 执行首次 host ↔ Codex `compare`。
-- 根据真实差异决定下一诊断切片；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
+- 比较完成后先沉淀一份脱敏案例和首选操作路径，再决定是否调整 CLI；Claude/DSH 不可用时明确记录未采集，不用 host 快照替代。
+- 随后邀请 3–5 名 Windows + Codex/Claude 用户试运行；根据重复反馈在 Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络对照中最多选择一个切片。
 
 本轮停止与恢复边界：
 
 - 用户要求在本轮技术迭代完成后停止；因此不再新增 ACL、代理、网络、长路径或更多生态识别功能。
-- 只有 host ↔ Codex 的真实 compare、新的稳定 workspace-scope 失败类型，或实际项目暴露现有 doctor 无法回答的必要问题时，才设计下一功能。
+- 只有 host ↔ Codex 的真实 compare、至少两名用户重复遇到的同类失败，或实际项目暴露现有 doctor 无法回答的必要问题时，才设计下一功能。
+- 不进入自动修复、Agent 配置治理、GUI/团队控制面和广泛 Windows 全科诊断；这些方向与现有项目重合且会显著扩大维护和误修风险。
 - 恢复时先读取本文件与 `docs/PROGRESS.md`，检查 `git status --short`，不要重复已经通过的 261 项/CI 验证。
 
 工作区恢复检查：
@@ -201,6 +214,8 @@
 | project-doctor 使用固定第一层 marker 和独立 v1 报告 | 在不读项目内容、不递归、不改变既有 scan/support/snapshot schema 的前提下推导本地工具链 | 2026-08-24 |
 | snapshot 写入使用有界 `O_EXCL` 临时文件 | Codex 工作区拒绝写入时必须快速返回；只对名称碰撞重试，避免 `NamedTemporaryFile` 的不可控等待，不扫描目录或引入哈希 | 2026-08-24 |
 | `command-doctor` 使用独立 v1 和共享 launcher probe | 单命令诊断需要严格输入、固定 `--version` 和有限的 PowerShell 辅助事实，同时不改变既有 scan/agent schema 或引入网络/写入操作 | 2026-08-24 |
+| 主路线收敛为 Windows host/Agent 执行上下文差异诊断 | 同类项目已覆盖配置修复和通用 Windows 排障；本项目最稀缺、最可验证的能力是双端独立采样和差分，而不是更多 doctor 数量 | 2026-08-27 |
+| 下一阶段先做案例、入口和用户验证 | 当前功能广度已足够，真实成对证据、可理解的首选流程和外部反馈比推测性探针更能验证需求 | 2026-08-27 |
 
 ## 验证证据
 

@@ -4,7 +4,7 @@
 
 Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问题，而是分层问题：当前进程 PATH、PowerShell 解析、脚本执行策略、子进程继承、Agent 沙箱和工作区能力可能不同。产品自带诊断通常只覆盖自己的产品，不能形成跨 Agent 的中立事实报告。
 
-首阶段因此只做确定性本地扫描，优先覆盖用户已经遇到的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突；第六里程碑的 `agent-doctor` 进一步只探测已解析启动器的离线版本能力。
+首阶段因此只做确定性本地扫描，优先覆盖用户已经遇到的 npm.ps1 被阻止、pnpm 安装后旧终端 PATH 未刷新和命令多版本冲突；第六里程碑的 `agent-doctor` 进一步只探测已解析启动器的离线版本能力。2026-08-27 复审后，主路线进一步收敛为“Windows host/Agent 执行上下文差异诊断”，不再用新增 doctor 数量衡量进度。
 
 ## 官方 CLI 事实与本项目边界（2026-08-24）
 
@@ -16,8 +16,31 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 
 ## 相似实现与差异
 
-- Codex、Claude Code 和 DSH 各自的 CLI/文档提供产品内入口；本项目不复刻它们的内部诊断，而报告跨 Agent 都能理解的 launcher 状态和结构化 Runner 证据。
-- 第三方跨 Agent 工具多集中于配置同步或 Agent 编排；本项目首阶段保持离线、只读和证据优先。
+- [EXboys/agent-doctor](https://github.com/EXboys/agent-doctor) 覆盖多 Agent 发现、配置/网关漂移、备份修复、回滚、工作区隔离和团队治理，是名称与类别上最接近的项目；本项目不进入配置修复和控制面，保留 Windows 执行上下文差分边界。
+- [windows-claude-code-doctor](https://github.com/IliaMalkin/windows-claude-code-doctor) 覆盖 PowerShell、Git Bash、WSL、路径转换、换行符、端口和文件锁，是问题域最接近的脚本/Skill；本项目的差异是独立 CLI、稳定 JSON、snapshot/compare 和跨 Agent 的有界探针。
+- [microsoft/ArgusAgent](https://github.com/microsoft/ArgusAgent) 的 `argus doctor` 可让 Agent 主动检查并修复 Argus 环境；本项目不启动真实 Agent 回合，也不执行修复。
+- [Microsoft APM Doctor](https://microsoft.github.io/apm/reference/cli/doctor/)、[React Native Doctor](https://reactnative.dev/blog/2019/11/18/react-native-doctor.html)、[Expo Doctor](https://docs.expo.dev/develop/tools/) 和 [.NET MAUI 环境诊断](https://learn.microsoft.com/en-us/dotnet/maui/developer-tools/cli/environment-diagnostics?view=net-maui-10.0) 证明确定性 preflight/doctor 是成熟的工具形态，但它们服务各自生态，不比较编码 Agent 与宿主进程。
+- [NVIDIA-Agent-Doctor](https://github.com/karthikrshet/NVIDIA-Agent-Doctor) 同样采用本地优先、结构化 JSON 和只读默认值，但服务 GPU/CUDA/Docker/MCP 环境；[Laravel Doctor](https://github.com/laravel/doctor) 的紧凑 Agent 输出值得作为后续入口设计参考。
+
+本轮检索没有发现成熟且完全替代“同机 host 与真实 Coding Agent 分别采样，再比较 PATH、launcher、Shell 和工作区能力”的项目。组件重合度较高，产品级完全重合度较低；因此不应宣称没有竞品，也不应把项目描述成通用 Agent Doctor。
+
+## 公开需求证据（2026-08-27）
+
+- Codex 已出现“PATH 中存在但沙箱执行被拒绝”和捆绑 `rg.exe` 可解析却 `Access Denied` 的报告：[openai/codex#28075](https://github.com/openai/codex/issues/28075)、[openai/codex#15148](https://github.com/openai/codex/issues/15148)。
+- Windows 受限 Token/目录写入和宿主网络正常但沙箱 DNS/代理失败也有公开案例：[openai/codex#22044](https://github.com/openai/codex/issues/22044)、[openai/codex#18675](https://github.com/openai/codex/issues/18675)。
+- Claude Code 已出现用户 PATH 已更新但继承进程仍提示命令缺失、终端重启后才刷新，以及 PowerShell/Git Bash 选择不一致的问题：[anthropics/claude-code#32098](https://github.com/anthropics/claude-code/issues/32098)、[anthropics/claude-code#18064](https://github.com/anthropics/claude-code/issues/18064)、[anthropics/claude-code#83889](https://github.com/anthropics/claude-code/issues/83889)。
+- WindowsApps alias 劫持或不可访问的 launcher 也有公开报告：[anthropics/claude-code#25075](https://github.com/anthropics/claude-code/issues/25075)、[openai/codex#35871](https://github.com/openai/codex/issues/35871)。
+
+这些证据支持需求存在，但本仓库当前尚无 Star、Issue 或外部试用反馈形成的采用证据。下一阶段必须用真实双端案例和 3–5 名用户试运行验证可理解性与使用价值，不能把 261 项测试或 CI 通过直接解释为市场验证。
+
+## 路线评估（2026-08-27）
+
+- 需求真实性：高；公开问题直接覆盖 PATH 继承、launcher access denied、Shell 差异和目录能力。
+- 重合风险：中等；配置修复、生态 doctor 和 Windows 排障脚本已经存在，但 host ↔ Agent 独立差分仍有空间。
+- 当前实现难度：中等；生产级覆盖 Codex/Claude、Store/原生安装、PowerShell/Git Bash/WSL 和变化中的沙箱行为属于高难度测试矩阵。
+- 最优路线：真实成对案例 → 首选入口或紧凑 Agent 输出 → 3–5 名外部用户 → 一个重复证据驱动的切片。
+- 候选切片：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照；三者都不是当前承诺。
+- 明确非目标：自动修复、Agent 配置治理、MCP/Memory/Skill 管理、GUI/团队控制面、广泛安全审计和通用 Windows 全科诊断。
 
 ## 真实场景
 

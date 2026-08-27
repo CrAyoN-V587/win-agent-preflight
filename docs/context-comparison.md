@@ -2,6 +2,8 @@
 
 这份协议用于比较同一台 Windows 机器上“普通宿主终端”和 Coding Agent 实际命令执行器看到的环境。它复用现有 `snapshot` 与 `compare`，不启动外部 Agent、不登录账户、不修改 PATH、权限或执行策略。
 
+这是当前项目路线的最高优先级验收。完成首组真实证据前，不继续增加新探针。
+
 ## 为什么必须双端手动触发
 
 一个进程只能采集自己的环境。若在普通 PowerShell 中连续生成 `host.json` 和 `codex.json`，得到的仍是两份宿主快照，不能证明 Codex 的 PATH、Shell 或权限。无法由当前 Agent 或单进程脚本替代的边界，是进入对应 Agent 会话，让该 Agent 自己的命令执行器运行一次快照命令；host 快照同样需要用户在普通 PowerShell 中触发。
@@ -93,3 +95,13 @@ python -B -m win_agent_preflight compare `
 - label 为 `codex`，cwd 为本仓库根目录，schema 为 v1，明文用户目录未出现在 JSON 中，临时文件残留为 0。
 - 该文件与自身比较返回等价 `0`。
 - host 端仍需用户在普通 PowerShell 中执行第 1 步，才能形成真实成对证据。
+
+## 用户现在需要完成
+
+1. 打开 Codex 外部的普通 PowerShell 窗口，不要在 Codex 内置终端运行 host 命令。
+2. 将第 0 节 `$TargetProject` 改为本仓库绝对路径，并保持证据目录为 `context-run-01`，以便与现有 `codex.json` 配对。
+3. 原样运行第 1 节命令，确认退出码为 `0` 且 `host.json` 存在；不要加 `--force` 覆盖来源不明的旧文件。
+4. 把 PowerShell 输出以及 `host.json` 的实际完整路径发给 Codex。不要直接粘贴整个 JSON；Codex 会读取文件、运行 `compare` 并检查脱敏边界。
+5. 首次比较完成后，确认是否允许把脱敏后的案例摘要加入公开文档。原始快照不会被自动提交或上传。
+
+如果 `host.json` 已存在，使用新的轮次目录（例如 `context-run-02`），并让 Codex 在同一轮目录重新采集对应的 `codex.json`，不要混用不同轮次的文件。
