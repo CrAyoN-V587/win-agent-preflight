@@ -44,9 +44,9 @@
 
 1. 暂不增加新的系统探针。现有能力已经能发现 PATH 注入、launcher 候选和 Shell 差异。
 2. 首要体验问题是成对采集容易混用 cwd、轮次和 timeout；短 timeout 还会制造假差异。
-3. 下一步先邀请 3–5 名 Windows Coding Agent 参与者复现这条流程，验证文档是否足够自解释。
-4. 若外部试用仍频繁出现操作错误，优先设计紧凑的 Agent 输出或成对证据预验证；不立即建设自动进入 Agent、自动修复或更多 doctor。
-5. 只有重复反馈支持时，才从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。
+3. 先由维护者确定日期并定稿 0.1.0 Changelog，提交并推送 `0.1.0` 最终发布材料，等待该提交 Windows CI 成功，再在同一提交创建 `v0.1.0` tag/Release 并上传已验制品；外部试运行手册保留为可选反馈入口，不作为发布阻塞。
+4. 发布后暂缓功能开发，优先通过公开访问、克隆、Issue/PR 和脱敏报告观察采用信号；不立即建设自动进入 Agent、自动修复或更多 doctor。
+5. 只有外部证据、至少两个独立环境重复缺口，或稳定且现有工具无法区分的上游问题支持时，才从 Shell/runtime mismatch、WindowsApps launcher chain 或显式 opt-in 网络对照中选择一个切片。发布和至少两次相关分享后 14 天仍有访问/克隆但没有 Star 时，只允许先做一次定位或演示调整。
 
 ## 复验入口
 

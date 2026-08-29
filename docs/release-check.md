@@ -4,10 +4,25 @@
 
 ## 环境
 
-- 首次维护环境已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job。
-- `git-doctor` 提交 `67697c7` 已通过 main Windows CI run `32708225452` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job；GitHub 认证仍不在离线验收范围内。
+- 首次维护环境已验证 Python 3.12；main Windows CI run `32703174150` 已完整验证包含 `command-doctor` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job，但这是既有功能基线。
+- `git-doctor` 提交 `67697c7` 已通过 main Windows CI run `32708225452` 的 Python 3.12/3.14 矩阵、严格 cp1252 help 和 package job；这同样不是本轮发布材料提交的 CI 验收。GitHub 认证仍不在离线验收范围内。
 - Windows 上优先使用 Python Launcher 区分并行版本：`py -3.12`、`py -3.14`。
 - 需要 Git 和本项目开发依赖；当前项目不需要 Node.js、Docker 或 WSL。
+
+## v0.1.0 发布交接
+
+本文件只记录发布前的本地验收。发布顺序必须是：维护者先确定日期并定稿 0.1.0 Changelog，提交并推送最终发布材料，等待该提交的 Windows CI 成功，再在同一提交由具有仓库权限的维护者创建 `v0.1.0` tag/Release 并上传已验制品；本地认证状态不是项目事实，也不应写入公开文档。
+
+发布前应确认：
+
+- 工作区只包含预期的 `0.1.0` 文档和代码变更，且 `git diff --check` 通过；
+- sdist/wheel 已在两个干净虚拟环境安装并运行 CLI 帮助；
+- 维护者已确定日期并定稿 0.1.0 Changelog，本轮最终发布材料已提交并推送；
+- 该发布材料提交的 Windows CI 有实际成功证据；既有功能基线 CI 不能替代本轮发布提交验收；
+- Release 说明引用 `CHANGELOG.md`，并明确 Windows-only、offline/no-login/no-auto-fix 边界；
+- 上述 CI 成功后，才在同一提交创建 `v0.1.0` tag/Release 并上传已验制品；发布完成后回填实际 Tag/Release 链接，再将项目状态切换为“发布后暂缓功能开发”。
+
+如果后续实现必须依赖无法取得的外部验证，先完成上述整理与最新版本发布，再暂停等待外部证据；外部试运行手册是可选反馈入口，不是发布前置条件。
 
 ## 构建
 

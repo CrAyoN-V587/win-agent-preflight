@@ -6,9 +6,9 @@
 
 ## 产品边界与优先级
 
-当前最强差异化是 Host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。下一阶段优先级固定为：真实成对案例、首选入口/紧凑输出、3–5 名外部参与者验证，最后才是由重复证据驱动的新探针。
+当前最强差异化是 Host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。当前优先级是完成 `0.1.0` 公开发布材料和可复验入口；下一步由维护者先确定日期并定稿 0.1.0 Changelog、提交并推送最终材料、等待该提交 Windows CI 成功、在同一提交创建 `v0.1.0` tag/Release 并上传已验制品，随后暂缓功能扩展，外部试运行作为可选反馈入口保留。
 
-不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有参与者证据时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
+不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有外部证据或至少两个独立环境重复缺口时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
 
 ## 模块边界
 
@@ -89,7 +89,7 @@ cli.py
 
 ## 未来扩展
 
-候选扩展只有三类：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照。它们不是既定待办；必须由真实成对案例或至少两名外部参与者的同类失败触发。自动修复不在当前路线内。
+候选扩展只有三类：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照。它们不是既定待办；必须由外部 Issue/PR/真实报告、至少两个独立环境的同类失败，或稳定且当前工具无法区分的上游问题触发。若发布和至少两次相关分享后 14 天仍有访问/克隆但没有 Star，只允许先做一次定位或演示调整。自动修复不在当前路线内。
 
 ## 第六里程碑：agent-doctor
 

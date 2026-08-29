@@ -1,0 +1,116 @@
+name: Bug report
+description: Report a reproducible Windows Agent Preflight problem with a minimal sanitized example.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Windows Agent Preflight.
+
+        This form is for the person reporting an observed behavior. Please provide only the smallest useful summary. Do not paste credentials, tokens, complete `PATH` values, full personal paths, raw snapshot JSON, full logs, or business files.
+
+  - type: dropdown
+    id: reporter-role
+    attributes:
+      label: Reporter role
+      description: Which role best describes this report?
+      options:
+        - End user
+        - External pilot participant
+        - Maintainer or contributor
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: execution-context
+    attributes:
+      label: Execution context
+      description: Where did the reported behavior occur?
+      options:
+        - Host PowerShell
+        - Codex
+        - Claude Code
+        - Another coding agent
+        - Not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      description: Give a broad version only, for example Windows 11 24H2. Do not include a device name or personal path.
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: preflight-version
+    attributes:
+      label: Windows Agent Preflight version
+      description: Use the package version or commit identifier if known; do not include local paths.
+      placeholder: 0.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: What happened?
+      description: State the observed behavior, the command category, and whether the process exited or timed out.
+      placeholder: "`command-doctor npm` reported usable in Host PowerShell but failed in the agent context."
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal-reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the shortest safe command sequence. Replace personal paths with `%PROJECT_ROOT%`, `%USERPROFILE%`, or another placeholder. Do not include raw snapshots or complete PATH values.
+      placeholder: |
+        1. Run `agent-preflight command-doctor <name> --json --pretty --timeout 5`.
+        2. Run the same command in the second execution context.
+        3. Summarize the relevant status and exit code here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sanitized-result
+    attributes:
+      label: Sanitized result summary
+      description: Share categories, exit codes, versions, or a short redacted error. Remove usernames, complete paths, credentials, and unrelated output.
+      placeholder: |
+        Host: exit 0, usable
+        Agent: exit 1, access_denied, WinError 5
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What result would make the report useful or correct?
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Optional. Add links to a public, sanitized reproduction or explain whether the behavior is repeatable. Do not attach private evidence here.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      description: The repository is public. Confirm the material in this issue is safe to publish.
+      options:
+        - label: I removed credentials, tokens, complete PATH values, personal paths, machine names, and business data.
+          required: true
+        - label: I did not attach raw snapshot JSON, full logs, or unredacted compare output.
+          required: true

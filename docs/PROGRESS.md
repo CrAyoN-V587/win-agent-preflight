@@ -2,12 +2,12 @@
 
 ## 当前快照
 
-- 当前阶段：首组严格 Host ↔ Codex 差分案例已完成；现有探针暂停扩展，进入 3–5 名外部 Windows Coding Agent 参与者试运行阶段。
+- 当前阶段：首组严格 Host ↔ Codex 差分案例、公开身份审阅和 `0.1.0` 发布材料整理已完成；等待维护者先确定日期并定稿 0.1.0 Changelog，提交并推送最终材料、该提交 Windows CI 成功，再在同一提交创建 `v0.1.0` tag/Release 并上传制品，发布后暂缓功能扩展，维护与反馈响应继续。
 - 完成度：首阶段 `scan` 保持稳定；EnvironmentSnapshot v1、`snapshot` 写出、`compare` 规范化差异、窄解析、CLI 退出码、只读注册表 PATH 刷新诊断、独立 `workspace-probe`、Agent Doctor、Command Doctor、Support Report、project-doctor 和 CI/构建入口已实现。
-- 最近验证：严格 Host ↔ Codex compare 退出 1 并报告 8 项有效差异；cwd/Python/5 秒 timeout 一致，敏感模式命中为 0。公开文档受众审阅的本地链接、敏感文本和对话式身份关键词检查通过；运行时代码基线仍为全量 261 项测试、Ruff 和 Windows CI `32712146556` 通过。
-- 未完成项：尚无 3–5 名外部参与者的成对采集和可理解性反馈。
+- 最近验证（2026-08-29）：全量 261 项测试、Ruff、`git diff --check`、真实只读 `scan`/`support-report`/`agent-doctor`、Markdown 本地链接、敏感路径和身份语气检查通过；v0.1.0 sdist/wheel 构建及两个临时干净环境安装后的 CLI help 通过。严格 Host ↔ Codex compare 退出 1 并报告 8 项有效差异；Windows CI `32712146556` 是已推送基线的既有证据，本轮未执行远端 CI。
+- 未完成项：维护者先确定日期并定稿 0.1.0 Changelog，再提交并推送最终发布材料、等待该提交 Windows CI 成功、在同一提交创建 `v0.1.0` tag/Release 和上传制品；外部参与者反馈是可选项，不阻塞 `0.1.0`。
 - 2026-08-27 路线复审完成：定位收敛为 Windows host/Agent 执行上下文差异诊断；不再以增加 doctor 数量为进度指标。
-- 下一步：由维护者将 `docs/external-pilot-guide.md` 发给 3–5 名外部参与者，收集最小回传模板；根据重复反馈决定是否设计紧凑 Agent 输出或成对证据预验证。远程操作由具有仓库权限的维护者执行。
+- 下一步：维护者先确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 等待该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传制品；完成后暂停功能开发，继续接受 Issue/PR/脱敏报告并观察采用信号。外部手册保留为可选入口，远程操作由具有仓库权限的维护者执行。
 
 维护与开发环境建议：
 
@@ -85,7 +85,7 @@
 - [x] 首次 GitHub CI run `32691934171` 已验证 Python 3.12/3.14 安装与 pytest，以及 Python 3.12 Ruff；两个矩阵 job 在根 `--help` 的 cp1252 `UnicodeEncodeError` 失败。
 - [x] 修复后两个矩阵 job 与 package job 已通过；sdist/wheel 均在干净环境安装并运行严格 cp1252 根帮助。
 
-本阶段结论：Git、Python 3.12.7 和项目依赖已足够完成首次本地研发与打包；Python 3.14、Python Launcher、GitHub CLI 和 PowerShell 7 属于可选维护工具。Windows CI 已完整验证 3.12/3.14、严格 cp1252 help 与 package job。Node.js、Docker、WSL、数据库和 `act` 当前没有必要。
+本阶段结论：Git、Python 3.12.7 和项目依赖已足够完成首次本地研发与打包；Python 3.14、Python Launcher、GitHub CLI 和 PowerShell 7 属于可选维护工具。Windows CI 已完整验证 3.12/3.14、严格 cp1252 help 与 package job。Node.js、Docker、WSL、数据库和 `act` 当前没有必要；账号与认证状态不属于项目验收事实。
 
 ## 阶段 6：Agent Doctor 最小版本探针
 
@@ -213,7 +213,7 @@
 
 - [x] 复审 Agent Doctor、Windows Claude Code Doctor、Argus Agent、APM Doctor、NVIDIA Agent Doctor 和生态型 doctor 工具，确认存在组件级重合但未发现成熟的“Windows host ↔ Coding Agent 独立采样与差分”完全替代品。
 - [x] 结合 Codex/Claude Code 的 PATH 未继承、Access Denied、WindowsApps launcher 和 Shell 差异公开问题，确认需求真实；同时记录项目当前尚无外部采用证据，不能把功能完成度等同于市场验证。
-- [x] 路线收敛为：真实成对案例 → 3–5 名外部参与者验证 → 必要时收敛入口/紧凑输出 → 至多一个证据驱动的新切片。
+- [x] 路线收敛为：完成 `0.1.0` 发布整理并公开分享 → 发布后暂缓功能扩展 → 通过 Issue/PR/真实报告和独立环境重复缺口决定是否恢复；外部试运行保留为可选反馈。
 - [x] 明确排除自动修复、Agent 配置治理、GUI/团队控制面和没有参与者证据的通用 Windows 全科诊断。
 - [x] 阶段 12 首组严格比较与公开归约案例已完成。
 
@@ -225,7 +225,7 @@
 - [x] `compare` 退出 1 并报告 8 项差异：PATH、Codex/Git/pnpm/Python 候选、npm 使用的 PowerShell、PATH refresh 和 Execution Policy。
 - [x] Git/Python/npm/pnpm 的最终版本在两端一致；Codex 注入的 fallback 和内部 CLI 作为候选差异保留，不被误写成所有工具都不同。
 - [x] 新增 `docs/host-codex-case-study.md`，只公开归约事实、被拒绝轮次和路线影响；原始快照留在 `%TEMP%`。
-- [x] 路线结论：先获取 3–5 名外部参与者反馈，再决定紧凑输出/成对证据预验证；当前不增加探针或自动修复。
+- [x] 路线结论：完成 `0.1.0` 发布整理后暂缓开发；只有达到恢复条件才决定紧凑输出、成对证据预验证或其他单一切片，当前不增加探针或自动修复。
 
 ## 阶段 18：外部试运行手册
 
@@ -241,19 +241,32 @@
 
 状态：完成；运行时代码未修改。
 
-- [x] README 改为面向公开访问者：先说明问题、适用场景、快速开始、边界和参与试运行入口，不再展示维护者会话中的认证状态、恢复点或内部交接语气。
+- [x] README 改为面向公开访问者：先说明问题、适用场景、快速开始和边界；外部试运行入口移至后部并明确为可选，不再展示维护者会话中的认证状态、恢复点或内部交接语气。
 - [x] 外部试运行手册明确区分参与者、Coding Agent、宿主操作者和维护者，回传模板只要求匿名归约结果。
 - [x] PROJECT、PROGRESS、设计、研究、案例、构建验收和 AGENTS 统一使用各自受众：公开介绍、参与者操作、维护决策、历史证据或 Agent 规则。
 - [x] GitHub CLI 登录、个人机器安装状态和一次对话中的授权不再作为公开仓库事实；远程操作只描述维护者角色和执行前核对要求。
 - [x] 过期的“尚未完成成对采集”记录已更新为首组 Host ↔ Codex 案例完成，Claude/DSH 外部案例仍待补充。
 
+## 阶段 20：v0.1.0 发布整理与开发暂缓
+
+状态：本地整理和发布前验收完成；运行时代码不新增功能，等待“维护者先确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传制品”的发布顺序完成。
+
+- [x] 默认 README 改为简洁英文访客入口，并链接中文完整说明；明确离线、无登录、无自动修复边界。
+- [x] 新增 `README.zh-CN.md`，同步当前能力、公开身份和“发布后暂缓功能扩展、维护与反馈响应继续”的状态。
+- [x] 新增 `CHANGELOG.md`，记录 `0.1.0` 功能、边界和验证口径。
+- [x] 新增 GitHub Bug Issue form，只收集报告者提供的脱敏最小复现，不接受凭据、完整 PATH、原始快照或业务文件。
+- [x] 根据 2026-08-29 竞品/需求复审更新路线；Star 只作为采用信号，不作为质量的直接替代指标。
+- [x] 把“外部验证不可得时先整理并发布，再暂停”的决策和恢复条件写入项目规则与公开工作流。
+- [x] 按发布检查完成 sdist/wheel 构建及两个临时干净环境安装；首次隔离构建的 PyPI 网络权限阻塞已如实记录，未写成源码故障。
+- [ ] 维护者先确定日期并定稿 0.1.0 Changelog，提交并推送最终发布材料，等待该提交 Windows CI 成功，再在同一提交的实际 GitHub 页面创建 `v0.1.0` tag/Release 并上传制品；本轮不代为声称已发布。
+
 ## 暂停检查点
 
-- 当前阶段：首组严格案例和外部试运行手册已完成；现有实现保持不变，等待 3–5 名外部参与者反馈，不继续增加推测性功能。
-- 最近验证：Workspace Scope 24 项 + CLI help 1 项（共 25 passed）、全量回归 261 项、Ruff、diff check、真实项目矩阵和 Windows CI `32712146556` 均通过；公开文档本地链接、敏感文本和受众关键词检查通过。
-- 未完成项：3–5 名外部 Windows Coding Agent 参与者尚未完成试运行。
-- 下一步：由维护者分享 `docs/external-pilot-guide.md`，记录一次成功率、故障是否可解释和重复缺口。远程操作由具有仓库权限的维护者执行。
-- 后续先完成真实案例和参与者验证；只有真实 compare、至少两名参与者重复反馈或实际项目必要缺口才设计新功能。当前不建设自动修复、Agent 配置治理、ACL 深挖、通用网络、GUI/团队控制面或更多生态识别。
+- 当前阶段：首组严格案例、外部试运行手册和 `0.1.0` 发布整理已完成；现有实现保持不变，等待维护者定稿 Changelog、提交并推送最终材料、该提交 Windows CI 成功，再在同一提交完成 tag/Release 和制品上传后进入暂缓状态。
+- 最近验证：全量回归 261 项、Ruff、diff check、真实只读 CLI、Markdown 本地链接、敏感路径和身份语气检查通过；v0.1.0 sdist/wheel 已构建，并分别在两个临时干净环境安装后通过 CLI help。Windows CI `32712146556` 只是已推送功能基线的既有证据，本轮未执行发布材料提交或远端 CI。
+- 未完成项：维护者定稿 Changelog、提交并推送本轮最终发布材料、等待该提交 Windows CI 成功、在同一提交创建 `v0.1.0` tag/Release 和上传制品；外部参与者反馈仍未获得，但不是发布前置条件。
+- 下一步：维护者先确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 等待该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传制品；之后保持功能暂停，继续接收 Issue/PR/脱敏报告。远程操作由具有仓库权限的维护者执行。
+- 只有外部 Issue/PR/真实报告、至少两个独立环境重复同类缺口，或稳定且现有工具无法区分的上游问题，才恢复新功能设计。发布和至少两次相关分享后 14 天仍有访问/克隆但无 Star 时，只允许进行一次定位/演示调整。
 - 恢复命令：
 
 ```powershell
@@ -330,6 +343,12 @@ Remove-Item Env:PYTHONIOENCODING
 | 2026-08-27 | 首组严格 host ↔ Codex 案例 | 同项目 cwd、同 Python、同 `--timeout 5` 分别运行 snapshot，再执行 compare 和敏感模式检查 | 两端相隔约 9 分钟；compare 退出 1、报告 8 项有效差异；用户名、常见 GitHub/OpenAI token/key、邮箱模式命中均为 0；全量 261 项测试、Ruff 和 diff check 通过 |
 | 2026-08-27 | 外部试运行手册 | 审阅准备/双端采集/compare/回传/风险/停止/清理流程；运行全量测试、Ruff、diff check 和链接存在性检查 | 261 项测试、Ruff、diff check 通过；手册和所有入口链接存在；运行时代码未修改 |
 | 2026-08-27 | 公开文档受众审阅 | 全量测试、Ruff、diff check、真实 `support-report`、本地 Markdown 链接、敏感文本与对话式身份关键词检查 | 261 项测试、Ruff、diff check 和真实 CLI 通过；本地链接、敏感文本与受众关键词检查均通过；运行时代码未修改 |
+| 2026-08-29 | v0.1.0 本地全量验证 | `python -B -m pytest -q -p no:cacheprovider`、`python -m ruff check . --no-cache`、`git diff --check` | 261 passed；Ruff 和 diff check 通过 |
+| 2026-08-29 | 真实只读 CLI | `scan`、`support-report`、`agent-doctor` 均使用 `--json --pretty --timeout 5` | `scan`/`support-report` 退出 0，11 pass/2 warning/0 fail/0 unknown；`agent-doctor` 退出 0，Codex usable，Claude/DSH 未找到；未写入项目文件 |
+| 2026-08-29 | v0.1.0 sdist/wheel | `python -m build --sdist --wheel` | 首次隔离构建因 PyPI 网络权限返回 WinError 10013；按授权重试成功，生成各 1 个 0.1.0 制品；GitHub Tag/Release 尚未执行 |
+| 2026-08-29 | 两个临时干净环境安装 | 使用 `%TEMP%` 下新建 Python 3.12 venv，分别安装本地 sdist 与 wheel，再运行 `python -m win_agent_preflight --help` | 两个环境均安装成功，CLI help 均退出 0；项目 `.artifacts` 目录受 Windows 权限限制，未把该阻塞误写成包故障 |
+| 2026-08-29 | 公开文本与 Issue form 检查 | Markdown 本地链接、敏感路径、公开身份语气扫描；依据 GitHub Issue form 语法进行手工复核 | 本地链接、敏感路径和身份检查通过；PyYAML/Node YAML 解析器不可用，未新增验证依赖；Issue form 未上传原始快照或凭据 |
+| 2026-08-29 | 最终发布制品复验 | 定稿 Changelog 后重新隔离构建 sdist/wheel，分别安装到两个新的 `%TEMP%` venv，并运行 CLI help 与 JSON 诊断 | 两个 0.1.0 制品构建、安装和 help 通过；sdist 的 `scan` 退出 1 且 JSON 可解析，表示发现环境能力项而非安装失败；wheel 的 `support-report` 退出 0 且 JSON 可解析 |
 
 ## 下一里程碑验收
 

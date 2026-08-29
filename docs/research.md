@@ -24,6 +24,42 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 
 2026-08-27 的公开资料检索没有发现成熟且完全替代“同机 host 与真实 Coding Agent 分别采样，再比较 PATH、launcher、Shell 和工作区能力”的项目。组件重合度较高，产品级完全重合度较低；因此不应宣称没有竞品，也不应把项目描述成通用 Agent Doctor。
 
+## 竞品与需求复审（2026-08-29）
+
+以下是 2026-08-29 对公开 GitHub 页面读取到的快照。Star、topic 和 release 会随时间变化；它们用于判断可见采用信号和定位，不是质量、可靠性或技术深度的直接评分。当前仓库的基线为 **0 star、0 topic、0 release**。
+
+| 项目 | 公开定位或重合点 | 该日 Stars |
+| --- | --- | ---: |
+| [CrAyoN-V587/win-agent-preflight](https://github.com/CrAyoN-V587/win-agent-preflight) | Windows Host ↔ Coding Agent 执行上下文差分；本项目 | 0 |
+| [IliaMalkin/windows-claude-code-doctor](https://github.com/IliaMalkin/windows-claude-code-doctor) | Windows shell、路径、WSL/Git Bash、文件锁等 Claude/Agent 排障 | 0 |
+| [EXboys/agent-doctor](https://github.com/EXboys/agent-doctor) | 多 Agent runtime 发现、配置诊断、修复、备份和隔离 | 3 |
+| [karthikrshet/NVIDIA-Agent-Doctor](https://github.com/karthikrshet/NVIDIA-Agent-Doctor) | NVIDIA/GPU/CUDA/Docker/MCP 等本地 Agent 基础设施诊断 | 3 |
+| [pranee54/AgentDoctor](https://github.com/pranee54/AgentDoctor) | Agent Doctor 类通用诊断方向 | 10 |
+| [NAJEMWEHBE/agent-doctor](https://github.com/NAJEMWEHBE/agent-doctor) | Agent Doctor 类通用诊断方向 | 0 |
+| [AlekseiUL/openclaw-agent-doctor](https://github.com/AlekseiUL/openclaw-agent-doctor) | OpenClaw 专项 Agent 环境诊断 | 26 |
+| [microsoft/ArgusAgent](https://github.com/microsoft/ArgusAgent) | Microsoft Argus Agent 生态中的 Agent/环境检查和修复方向 | 26 |
+| [laravel/doctor](https://github.com/laravel/doctor) | Laravel 生态的项目/环境 doctor 入口 | 104 |
+
+结论是“类别竞争明显、完整替代较少”：通用 Agent Doctor、Windows Claude 排障和生态 doctor 已经覆盖相邻需求；本项目仍有一个窄差异——不修改用户环境，由 Host 与真实 Agent 分别采集，再用同一 schema 做可分享的差分。这个差异足以支持一个小而清晰的工具，但不足以支持继续堆叠更多 doctor 子命令。
+
+### 公开需求入口
+
+公开问题说明了需求的具体形态，但不等于本项目已经拥有采用者：
+
+- [openai/codex#41237](https://github.com/openai/codex/issues/41237)：Windows 沙箱对 profile directory 的读取返回 `EPERM`，阻断本地构建；
+- [openai/codex#35871](https://github.com/openai/codex/issues/35871)：沙箱解析到 WindowsApps/MSIX 版 `pwsh` 时，`CreateProcessAsUserW` 返回错误 5；
+- [openai/codex#22044](https://github.com/openai/codex/issues/22044)：受限 token、`--add-dir` 和路径替换能力之间的差异；
+- [openai/codex#30829](https://github.com/openai/codex/issues/30829)：Windows 安装后 setup launcher/junction 未被 CLI 发现；
+- [Anthropic Claude Code Windows setup](https://code.claude.com/docs/en/installation)：官方文档同时说明 native Windows、PowerShell、Git for Windows/Git Bash 与 WSL 路径，表明 Windows Agent 的 shell/runtime 选择本身就是需要明确记录的变量。
+
+这些页面支持“执行上下文差异是实际问题”的判断；项目的首组 Host ↔ Codex 案例进一步证明差异可以被采集和解释。但目前没有外部 Issue、PR、参与者报告或 Star 证明采用价值，因此不能把公开需求证据、本地案例、261 项测试或 CI 通过写成外部市场验证。
+
+### 以 Star 为目标的路线判断
+
+当前最小可行路线是：完成 `0.1.0` 的 README/中文说明、CHANGELOG、Issue form、构建验收和发布材料；下一步由维护者先确定日期并定稿 0.1.0 Changelog，提交并推送最终材料，等待该提交 Windows CI 成功，再在同一提交创建 `v0.1.0` tag/Release 并上传已验制品，随后暂缓功能开发。外部试运行手册继续开放，但难以找到参与者时，公开问题、首组脱敏双端案例、本地测试和 CI 只能作为替代证据，不能冒充外部验证。
+
+暂停期间只观察公开采用信号和真实反馈。只有出现外部 Issue/PR/真实报告、至少两个独立环境重复同类缺口，或稳定的上游问题且现有工具无法区分时，才恢复功能设计。若完成发布和至少两次相关分享后 14 天仍有访问/克隆但无 Star，只允许做一次定位或演示调整，再决定是否恢复开发；Star 是采用信号，不直接等于质量。
+
 ## 公开需求证据（2026-08-27）
 
 - Codex 已出现“PATH 中存在但沙箱执行被拒绝”和捆绑 `rg.exe` 可解析却 `Access Denied` 的报告：[openai/codex#28075](https://github.com/openai/codex/issues/28075)、[openai/codex#15148](https://github.com/openai/codex/issues/15148)。
@@ -31,14 +67,14 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 - Claude Code 已出现用户 PATH 已更新但继承进程仍提示命令缺失、终端重启后才刷新，以及 PowerShell/Git Bash 选择不一致的问题：[anthropics/claude-code#32098](https://github.com/anthropics/claude-code/issues/32098)、[anthropics/claude-code#18064](https://github.com/anthropics/claude-code/issues/18064)、[anthropics/claude-code#83889](https://github.com/anthropics/claude-code/issues/83889)。
 - WindowsApps alias 劫持或不可访问的 launcher 也有公开报告：[anthropics/claude-code#25075](https://github.com/anthropics/claude-code/issues/25075)、[openai/codex#35871](https://github.com/openai/codex/issues/35871)。
 
-这些证据支持需求存在，但本仓库当前尚无 Star、Issue 或外部试用反馈形成的采用证据。下一阶段必须用真实双端案例和 3–5 名参与者试运行验证可理解性与使用价值，不能把 261 项测试或 CI 通过直接解释为市场验证。
+这些证据支持需求存在，但本仓库当前尚无 Star、Issue 或外部试用反馈形成的采用证据。真实双端案例和外部试运行可提高证据质量，但外部参与者不是 `0.1.0` 发布前置条件；不能把 261 项测试或 CI 通过直接解释为市场验证。
 
 ## 路线评估（2026-08-27）
 
 - 需求真实性：高；公开问题直接覆盖 PATH 继承、launcher access denied、Shell 差异和目录能力。
 - 重合风险：中等；配置修复、生态 doctor 和 Windows 排障脚本已经存在，但 host ↔ Agent 独立差分仍有空间。
 - 当前实现难度：中等；生产级覆盖 Codex/Claude、Store/原生安装、PowerShell/Git Bash/WSL 和变化中的沙箱行为属于高难度测试矩阵。
-- 最优路线：真实成对案例 → 首选入口或紧凑 Agent 输出 → 3–5 名外部参与者 → 一个重复证据驱动的切片。
+- 最优路线：公开真实成对案例 → 维护者确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 等待该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传已验制品 → 发布后暂缓功能扩展；有外部证据或至少两个独立环境重复缺口时，再恢复一个最小切片。既有功能基线 CI 只作为历史证据，不替代本轮发布提交验收。
 - 候选切片：Shell/runtime mismatch、WindowsApps launcher chain、显式 opt-in 网络上下文对照；三者都不是当前承诺。
 - 明确非目标：自动修复、Agent 配置治理、MCP/Memory/Skill 管理、GUI/团队控制面、广泛安全审计和通用 Windows 全科诊断。
 
@@ -54,7 +90,7 @@ Windows 上的 Coding Agent 故障通常不是“程序是否存在”一个问�
 
 同一 Windows 机器、同一项目 cwd、同一 Python 和 5 秒 timeout 的 host ↔ Codex 快照相隔约 9 分钟，`compare` 报告 8 项有效差异。Codex 明确注入自己的 runtime PATH、捆绑 PowerShell、Git/pnpm fallback 和内部 CLI；Git/Python/npm/pnpm 的最终选择或版本仍与宿主一致。完整归约见 [`host-codex-case-study.md`](host-codex-case-study.md)。
 
-前两轮也提供了需求证据：跨日期快照、错误 cwd 和 1–2 秒 timeout 会制造无法归因或不稳定的差异。当前最急迫的产品风险因此不是探针不足，而是成对采集协议是否能让新参与者一次正确执行。下一阶段先获取 3–5 名外部参与者反馈，再决定是否需要紧凑 Agent 输出或成对证据预验证。
+前两轮也提供了需求证据：跨日期快照、错误 cwd 和 1–2 秒 timeout 会制造无法归因或不稳定的差异。当前最急迫的产品风险不是探针不足，而是公开入口是否能让访问者理解 Host/Agent 身份边界。外部参与者难以获得时，先完成公开发布并保留可选手册；只有后续反馈形成重复缺口，才决定是否需要紧凑 Agent 输出或成对证据预验证。
 
 ## 首阶段取舍
 

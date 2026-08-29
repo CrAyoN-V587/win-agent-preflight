@@ -41,7 +41,7 @@ python -B -m win_agent_preflight snapshot `
 
 ## 2. 在真实 Agent 执行器采集
 
-进入 Codex 任务，让 Codex 通过自己的命令执行工具运行：
+参与者在对应 Agent 会话中，由该 Agent 的命令执行器运行：
 
 ```powershell
 $TargetProject = "D:\path\to\target-project"
@@ -91,7 +91,7 @@ python -B -m win_agent_preflight compare `
 
 工具不会自动上传、压缩、哈希或删除证据。完成检查后，由证据目录的创建者显式删除该次 `$EvidenceDir`；不要使用宽泛目录作为清理目标。
 
-## 当前实测状态
+## 历史实测状态（截至 2026-08-27）
 
 - Codex 端 `context-run-01\codex.json` 已在 `%TEMP%` 成功生成并由 `load_snapshot` 重新读取。
 - label 为 `codex`，cwd 为本仓库根目录，schema 为 v1，明文用户目录未出现在 JSON 中，临时文件残留为 0。
@@ -102,13 +102,15 @@ python -B -m win_agent_preflight compare `
 - 宿主操作者随后在同一项目根以相同 5 秒 timeout 生成 `context-run-03\host.json`。两端使用同一 Python 解释器，采集相隔约 9 分钟；严格 compare 退出 1 并报告 8 项有效差异。
 - 首组公开归约结果见 [`host-codex-case-study.md`](host-codex-case-study.md)。原始快照没有提交或上传。
 
-## 外部试运行者需要完成
+## 可选外部试运行
 
-1. 打开 Codex 外部的普通 PowerShell 窗口，不要在 Codex 内置终端运行 host 命令。
-2. 将第 0 节 `$TargetProject` 改为实际项目绝对路径，为本次试运行使用新的轮次目录名；必须实际执行 `Set-Location $TargetProject`。
-3. 让真实 Agent 执行器按第 2 节在同一轮目录生成对应快照；两端必须使用相同代码版本和 timeout。
-4. 在普通 PowerShell 原样运行第 1 节命令，确认退出码为 `0` 且 `host.json` 存在；不要加 `--force` 覆盖来源不明的旧文件。
-5. 按第 3 节运行 compare，并记录是否一次完成、差异是否能解释当前问题。不要直接公开整个 JSON；先按第 4 节检查边界。
-6. 只有明确同意公开时，才提交人工归约后的案例摘要；原始快照不会被工具自动提交或上传。
+1. 参与者打开 Coding Agent 外部的普通 PowerShell 窗口，不要在 Agent 内置终端运行 host 命令。
+2. 参与者将第 0 节 `$TargetProject` 改为实际项目绝对路径，为本次试运行使用新的轮次目录名；必须实际执行 `Set-Location $TargetProject`。
+3. 参与者让真实 Agent 执行器按第 2 节在同一轮目录生成对应快照；两端必须使用相同代码版本和 timeout。
+4. 参与者在普通 PowerShell 原样运行第 1 节命令，确认退出码为 `0` 且 `host.json` 存在；不要加 `--force` 覆盖来源不明的旧文件。
+5. 参与者按第 3 节运行 compare，并记录是否一次完成、差异是否能解释当前问题。不要直接公开整个 JSON；先按第 4 节检查边界。
+6. 只有参与者明确同意公开时，才提交人工归约后的案例摘要；原始快照不会被工具自动提交或上传。
 
 如果本轮任一输出已存在，不要覆盖；改用新的轮次目录，并在两端都使用相同 cwd、工具版本和 timeout 重新采集，不要混用不同轮次或参数的文件。
+
+外部采集是可选反馈入口，不是 `0.1.0` 发布或发布后暂缓决定的前置条件。若未来功能设计必须依赖外部验证，应先完成当时的整理与最新版本发布，再暂停等待证据。
