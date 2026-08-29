@@ -94,11 +94,11 @@ Reports can still reveal installed software, versions, non-user directories, pro
 
 ## Status and next boundary
 
-The repository is prepared for the `0.1.0` release boundary. Local package checks are complete; the release sequence is: the maintainer confirms the date and finalizes the 0.1.0 changelog, commits and pushes the final release materials, waits for Windows CI on that commit to succeed, then creates the `v0.1.0` tag/Release from that same commit and uploads the validated artifacts. Feature development is then intentionally paused.
+[`v0.1.0`](https://github.com/CrAyoN-V587/win-agent-preflight/releases/tag/v0.1.0) is published from commit `33cbb6e`. Windows CI passed on Python 3.12 and 3.14, and the Release includes the validated sdist and wheel. Feature development is intentionally paused; maintenance, documentation fixes, and feedback responses continue.
 
 The pause is lifted only when there is useful evidence: an external Issue or PR or real report; the same gap appears in at least two independent environments; or a stable upstream problem cannot be distinguished by the current tool. If the project has release and at least two relevant shares but no stars after 14 days despite visits or clones, allow one positioning/demo adjustment before considering implementation work. GitHub stars are an adoption signal, not a direct measure of quality.
 
-The optional [external pilot guide](docs/external-pilot-guide.md) remains available for anyone who wants to provide a sanitized report. External testing is not required for the v0.1.0 release sequence or to make the pause decision.
+The optional [external pilot guide](docs/external-pilot-guide.md) remains available for anyone who wants to provide a sanitized report. External testing was not required to publish v0.1.0 and is not required to keep the project paused.
 
 ## Documentation
 

@@ -6,7 +6,7 @@
 
 ## 产品边界与优先级
 
-当前最强差异化是 Host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。当前优先级是完成 `0.1.0` 公开发布材料和可复验入口；下一步由维护者先确定日期并定稿 0.1.0 Changelog、提交并推送最终材料、等待该提交 Windows CI 成功、在同一提交创建 `v0.1.0` tag/Release 并上传已验制品，随后暂缓功能扩展，外部试运行作为可选反馈入口保留。
+当前最强差异化是 Host ↔ Agent 的独立采样与差分，其次是 Windows PATH refresh、PowerShell launcher 和 target/control 工作区能力证据。`v0.1.0` 公开发布和可复验入口已完成；功能扩展现已暂缓，外部试运行作为可选反馈入口保留。
 
 不进入自动修复、Agent 配置同步、MCP/Memory/Skill 治理、网关或团队控制面；也不在没有外部证据或至少两个独立环境重复缺口时扩展端口、文件锁、Defender、GPU、Docker、WSL、ACL 深挖或通用网络检查。若未来加入网络对照，必须是显式 opt-in、有限目标、超时且不采集凭据的独立能力。
 

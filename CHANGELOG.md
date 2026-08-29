@@ -4,7 +4,7 @@
 
 ## [0.1.0] - 2026-08-29
 
-本节是日期已确定为 2026-08-29 的最终 `0.1.0` 发布材料，当前仍待 Tag/Release。发布顺序固定为：维护者先确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 等待该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传制品。只有最后一步实际完成后才算正式发布；在此之前不要将本节称为已发布版本。
+`0.1.0` 已于 2026-08-29 从提交 `33cbb6e` 发布；GitHub Release 附带经过验收的 sdist 和 wheel。
 
 ### Added
 
@@ -30,5 +30,5 @@
 - Ruff：通过；
 - `git diff --check`：通过；
 - 真实只读 CLI、脱敏规则、Markdown 本地链接和公开身份语气检查：通过；
-- sdist/wheel 构建与两个临时干净环境安装：已在本地完成；首次隔离构建受 PyPI 网络权限限制，按授权重试成功。GitHub Tag/Release 尚待维护者手动执行。
-- 已推送功能基线的 Windows CI 仅作为历史功能证据；发布材料提交后的 Windows CI 尚待执行，不以旧 CI 代替本轮发布验收。
+- sdist/wheel 构建与两个临时干净环境安装：已在本地完成；首次隔离构建受 PyPI 网络权限限制，按授权重试成功；两个制品已上传到 GitHub Release。
+- 发布提交 `33cbb6e` 的 [Windows CI](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/33254944797) 已通过 Python 3.12、Python 3.14 和包构建安装验收。

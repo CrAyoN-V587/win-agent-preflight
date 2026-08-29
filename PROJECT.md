@@ -1,6 +1,6 @@
 # Windows Agent Preflight
 
-状态：0.1.0 发布材料整理完成，等待本轮提交及 Windows CI；发布后暂缓功能开发
+状态：v0.1.0 已发布；功能开发暂缓，继续维护与响应反馈
 类型：P3 Agent  
 开始日期：2026-08-24  
 最近更新：2026-08-29
@@ -10,11 +10,11 @@
 
 一句话目标：提供面向 Windows Coding Agent 的执行上下文差异诊断，比较宿主终端与 Agent 沙箱中的命令、PATH、Shell、启动器和工作区能力。
 
-当前阶段：首组严格 Host ↔ Codex 案例、公开文档身份审阅和 `0.1.0` 发布整理已完成。两端使用相同项目 cwd、Python 解释器和 5 秒 timeout，采集相隔约 9 分钟；`compare` 退出 1 并报告 8 项有效差异，归约结果见 `docs/host-codex-case-study.md`。下一步按“维护者先确定日期并定稿 0.1.0 Changelog → 提交并推送最终发布材料 → 等待该提交 Windows CI 成功 → 在同一提交创建 `v0.1.0` tag/Release 并上传制品”执行，随后暂缓功能扩展；外部试运行保留为可选反馈入口。
+当前阶段：首组严格 Host ↔ Codex 案例、公开文档身份审阅和 [`v0.1.0`](https://github.com/CrAyoN-V587/win-agent-preflight/releases/tag/v0.1.0) 发布已完成。两端使用相同项目 cwd、Python 解释器和 5 秒 timeout，采集相隔约 9 分钟；`compare` 退出 1 并报告 8 项有效差异，归约结果见 `docs/host-codex-case-study.md`。功能开发现已暂缓；外部试运行保留为可选反馈入口。
 
-下一步：由具有仓库权限的维护者先确定日期并定稿 0.1.0 Changelog，提交并推送最终发布材料，等待该提交的 Windows CI 成功，再在同一提交创建 `v0.1.0` tag/Release 并上传制品；随后暂停功能开发，继续接受 Issue/PR/脱敏报告并观察采用信号。外部手册可选，不把找不到参与者作为发布阻塞。
+下一步：保持功能开发暂缓，继续接受 Issue/PR/脱敏报告并观察采用信号；完成至少两次相关分享后观察 14 天。没有恢复条件证据时，不增加探针或自动修复。外部手册可选，不把找不到参与者作为维护阻塞。
 
-最近验证（2026-08-29）：全量 261 项测试、Ruff、`git diff --check`、真实只读 `scan`/`support-report`/`agent-doctor`、Markdown 本地链接、敏感路径和身份语气检查通过；v0.1.0 sdist/wheel 构建及两个临时干净环境安装后的 CLI help 通过。严格 Host ↔ Codex compare 仍退出 1 并报告 8 项有效差异；原始快照未提交。已推送功能基线的 Windows CI `32712146556` 仅是既有功能证据，不是本轮发布材料的 CI 验收；本轮尚未执行发布材料提交、该提交的 Windows CI、GitHub Tag/Release 或制品上传。
+最近验证（2026-08-29）：全量 261 项测试、Ruff、`git diff --check`、真实只读 `scan`/`support-report`/`agent-doctor`、Markdown 本地链接、敏感路径和身份语气检查通过；v0.1.0 sdist/wheel 构建及两个临时干净环境安装后的 CLI help 通过。严格 Host ↔ Codex compare 仍退出 1 并报告 8 项有效差异；原始快照未提交。发布提交 `33cbb6e` 的 [Windows CI `33254944797`](https://github.com/CrAyoN-V587/win-agent-preflight/actions/runs/33254944797) 全部通过；`v0.1.0` Tag/Release 和两个制品已公开。
 
 真实项目复验：`project-doctor` 正确识别 MyMineCraft 的 Node + pnpm 和 MCP Interop Lab 的 Python；两份无标准依赖 marker 的旧 Triton 源码树保守返回 `unknown`。同一 Codex 上下文的 `workspace-probe` 在 Triton 优化项目六步通过，在 MyMineCraft 与 MCP Interop Lab 创建目录时返回 WinError 5；三次均无残留。
 
